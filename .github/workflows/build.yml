@@ -1,0 +1,26 @@
+name: build
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        run: xcodegen generate
+      - name: Build iOS (unsigned)
+        run: |
+          xcodebuild -project bowatch.xcodeproj -scheme bowatch-iOS \
+            -destination "generic/platform=iOS Simulator" \
+            CODE_SIGNING_ALLOWED=NO build
+      - name: Build watchOS (unsigned)
+        run: |
+          xcodebuild -project bowatch.xcodeproj -scheme bowatch-watchOS \
+            -destination "generic/platform=watchOS Simulator" \
+            CODE_SIGNING_ALLOWED=NO build
+      - name: Cleanup XcodeGen
+        run: rm -f bowatch.xcodeproj/project.xcworkspace/xcshareddata/bowatch.xcconfig

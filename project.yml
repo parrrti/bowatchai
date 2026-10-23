@@ -1,0 +1,36 @@
+name: bowatch
+options:
+  bundleIdPrefix: top.jing
+  deploymentTarget:
+    iOS: "17.0"
+    watchOS: "10.0"
+targets:
+  bowatch:
+    type: application
+    platform: iOS
+    sources:
+      - Sources/iOS
+      - Sources/Shared
+    settings:
+      base:
+        SWIFT_VERSION: "5.9"
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+  bowatchWatch:
+    type: application
+    platform: watchOS
+    sources:
+      - Sources/WatchApp
+      - Sources/Shared
+    settings:
+      base:
+        SWIFT_VERSION: "5.9"
+schemes:
+  bowatch-iOS:
+    build:
+      targets:
+        bowatch: all
+  bowatch-watchOS:
+    build:
+      targets:
+        bowatchWatch: all
