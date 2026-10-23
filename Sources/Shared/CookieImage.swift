@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 /// 带 cookie 的图片：URLSession.shared 同一 CookieStorage，天然带登录态
 struct CookieImage: View {

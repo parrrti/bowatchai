@@ -6,15 +6,15 @@ enum APIError: Error {
     case badURL
 }
 
-struct MWCtx: Decodable { let used: Int; let window: Int; let ratio: Double }
-struct MWCtxWrap: Decodable { let ctx: MWCtx? }
+struct MWCtx: Codable { let used: Int; let window: Int; let ratio: Double }
+struct MWCtxWrap: Codable { let ctx: MWCtx? }
 
-struct MWState: Decodable {
+struct MWState: Codable {
     struct Sess: Decodable, Identifiable {
         let id: String; let name: String
         let preview: String?; let mode: String?
     }
-    struct Acct: Decodable {
+    struct Acct: Codable {
         let username: String?; let display_name: String?; let admin: Bool?
     }
     let auth: Int?
@@ -25,7 +25,7 @@ struct MWState: Decodable {
     let account: Acct?
 }
 
-struct MWStatus: Decodable {
+struct MWStatus: Codable {
     let state: String
     let text: String?
     let live: String?
@@ -36,8 +36,8 @@ struct MWStatus: Decodable {
     let images: [Int]?
 }
 
-struct MWHistory: Decodable {
-    struct M: Decodable {
+struct MWHistory: Codable {
+    struct M: Codable {
         let role: String; let text: String
         let meta: String?; let think_n: Int?
         let images: [Int]?; let seq: Int?
@@ -45,8 +45,8 @@ struct MWHistory: Decodable {
     let messages: [M]
 }
 
-struct MWModels: Decodable {
-    struct Ov: Decodable { let provider_id: String; let model: String }
+struct MWModels: Codable {
+    struct Ov: Codable { let provider_id: String; let model: String }
     let models: [String]?
     let current: [Ov]?
     var currentLabel: String {
@@ -54,14 +54,14 @@ struct MWModels: Decodable {
     }
 }
 
-struct MWThink: Decodable { let think: String }
-struct MWNewSession: Decodable { let id: String; let name: String }
-struct MWDel: Decodable {
-    struct FB: Decodable { let id: String; let name: String }
+struct MWThink: Codable { let think: String }
+struct MWNewSession: Codable { let id: String; let name: String }
+struct MWDel: Codable {
+    struct FB: Codable { let id: String; let name: String }
     let ok: Int?
     let fallback: FB?
 }
-struct MWCompact: Decodable { let compacted: Bool; let detail: String? }
+struct MWCompact: Codable { let compacted: Bool; let detail: String? }
 
 final class APIClient {
     static let prefix = "/watch"
@@ -128,7 +128,7 @@ final class APIClient {
     func state() async throws -> MWState { try await dec(MWState.self, "/api/state") }
 
     func send(_ text: String, sid: String) async throws -> (String, Int) {
-        struct R: Decodable { let sid: String; let since: Int }
+        struct R: Codable { let sid: String; let since: Int }
         var payload: [String: Any] = ["text": text]
         if !sid.isEmpty { payload["sid"] = sid }
         let r: R = try await dec(R.self, "/api/send", method: "POST", body: payload)
