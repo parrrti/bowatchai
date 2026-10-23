@@ -31,9 +31,10 @@ final class ChatEngine: ObservableObject {
     private var booted = false
 
     init() {
-        serverURL = UserDefaults.standard.string(forKey: "serverURL")
+        let saved = UserDefaults.standard.string(forKey: "serverURL")
             ?? "https://www.u3923374.nyat.app:59150"
-        api = APIClient(baseURL: serverURL)
+        serverURL = saved
+        api = APIClient(baseURL: saved)
     }
 
     func setServer(_ raw: String) {
