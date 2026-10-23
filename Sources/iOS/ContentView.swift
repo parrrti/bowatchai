@@ -100,17 +100,6 @@ struct SessionListView: View {
     }
 }
 
-struct LetterAvatar: View {
-    let letter: String
-    var body: some View {
-        Text(String((letter.first ?? "🧑").capitalized.first ?? "?"))
-            .font(.footnote).bold()
-            .foregroundStyle(.white)
-            .frame(width: 30, height: 30)
-            .background(Circle().fill(Color.accentColor))
-    }
-}
-
 struct SettingsSheet: View {
     @ObservedObject var engine: ChatEngine
     @Environment(\.dismiss) private var dismiss
@@ -254,8 +243,7 @@ struct SessionDetailView: View {
                                anchor: .bottom)
             }
         }
-        .navigationTitle(engine.sessions.first { $0.id == engine.sid }?.name
-                         ?? "对话")
+        .navigationTitle(titleText)
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(item: $page) { p in
             switch p {
@@ -274,6 +262,10 @@ struct SessionDetailView: View {
         }
         .onAppear { if engine.sid != presetSid {
             Task { await engine.switchSession(presetSid) } } }
+    }
+
+    private var titleText: String {
+        engine.sessions.first { $0.id == engine.sid }?.name ?? "对话"
     }
 
     /// 方框+上三角：发送/终止一体，滚动时整个随 barHidden 藏起来
@@ -373,28 +365,3 @@ struct ThinkPage: View {
     }
 }
 
-struct ModelSheet: View {
-    @ObservedObject var engine: ChatEngine
-    var body: some View {
-        List(engine.models, id: \.self) { full in
-            Button {
-                Task { await engine.setModel(full) }
-            } label: {
-                HStack {
-                    Text(full).font(.footnote).lineLimit(1)
-                    Spacer()
-                    if engine.modelOverride == full {
-                        Image(systemName: "checkmark").foregroundStyle(.tint)
-                    }
-                }
-            }
-        }
-        .navigationTitle("模型 \(engine.models.count)")
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("跟随全局") { Task { await engine.setModel("") } }
-            }
-        }
-        .onAppear { if engine.models.isEmpty { Task { await engine.loadModels() } } }
-    }
-}
