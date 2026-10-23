@@ -10,7 +10,7 @@ struct MWCtx: Codable { let used: Int; let window: Int; let ratio: Double }
 struct MWCtxWrap: Codable { let ctx: MWCtx? }
 
 struct MWState: Codable {
-    struct Sess: Decodable, Identifiable {
+    struct Sess: Codable, Identifiable {
         let id: String; let name: String
         let preview: String?; let mode: String?
     }
