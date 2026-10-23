@@ -193,7 +193,7 @@ struct WatchChatDetail: View {
     @State private var draft = ""
     @State private var barHidden = false
     @State private var thinkSheetText: String?
-    private static let liveDot = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+    private static let liveDot = Int.max
 
     var body: some View {
         ScrollViewReader { proxy in

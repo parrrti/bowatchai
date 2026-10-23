@@ -208,7 +208,7 @@ struct SessionDetailView: View {
     @State private var barHidden = false
     @State private var page: DetailPage?
     @FocusState private var focused: Bool
-    private static let liveDot = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+    private static let liveDot = Int.max
 
     var body: some View {
         ScrollViewReader { proxy in
