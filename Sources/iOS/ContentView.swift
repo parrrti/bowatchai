@@ -65,6 +65,7 @@ struct ChatView: View {
     @State private var draft = ""
     @State private var showModels = false
     @State private var camStamp = 0
+    private static let liveDot = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -80,7 +81,7 @@ struct ChatView: View {
                                  ? (engine.liveLine.isEmpty ? "…" : engine.liveLine)
                                  : engine.liveText)
                                 .font(.subheadline).foregroundStyle(.secondary)
-                        }.id("live")
+                        }.id(Self.liveDot)
                     }
                     if !engine.notice.isEmpty {
                         Text(engine.notice)
@@ -92,7 +93,7 @@ struct ChatView: View {
                 .padding(.top, 4)
             }
             .onChange(of: engine.messages.count) { _, _ in
-                proxy.scrollTo(engine.messages.last?.id ?? "live", anchor: .bottom)
+                proxy.scrollTo(engine.messages.last?.id ?? Self.liveDot, anchor: .bottom)
             }
         }
         .navigationTitle(engine.persona.isEmpty ? "bowatch" : engine.persona)
