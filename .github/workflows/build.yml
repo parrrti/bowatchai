@@ -16,26 +16,29 @@ jobs:
       - name: Generate project
         run: xcodegen generate
       - name: Build iOS
-        continue-on-error: true
         run: |
           set -o pipefail
           xcodebuild -project bowatch.xcodeproj -scheme bowatch-iOS \
             -destination "generic/platform=iOS Simulator" \
             CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build-ios.log
-          echo "${PIPESTATUS[0]}" > ios.exit
-      - name: Save iOS errors for Miya
-        if: failure()
-        run: |
-          grep -E "error:|fatal error" build-ios.log | sort -u | head -60 > errors.md \
-            || tail -60 build-ios.log > errors.md
-          git config user.name ci-bot
-          git config user.email bot@users.noreply.github.com
-          git add errors.md build-ios.log || true
-          git commit -qm "ci: log errors" || true
-          git push || true
       - name: Build watchOS
-        if: success()
         run: |
           xcodebuild -project bowatch.xcodeproj -scheme bowatch-watchOS \
             -destination "generic/platform=watchOS Simulator" \
-            CODE_SIGNING_ALLOWED=NO build
+            CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build-watch.log
+      - name: Save errors for remote debugging
+        if: failure()
+        run: |
+          : > errors.md
+          for f in build-ios.log build-watch.log; do
+            [ -f "$f" ] || continue
+            echo "## $f" >> errors.md
+            grep -E "error:" "$f" | sort -u | head -40 >> errors.md || true
+            echo "--- tail ---" >> errors.md
+            tail -20 "$f" >> errors.md || true
+          done
+          git config user.name ci-bot
+          git config user.email bot@users.noreply.github.com
+          git add errors.md
+          git commit -qm "ci: log errors" || true
+          git push || true
