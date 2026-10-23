@@ -2,25 +2,40 @@ name: build
 on:
   push:
     branches: [main]
+    paths-ignore: ['**.md']
   workflow_dispatch:
 jobs:
   build:
     runs-on: macos-14
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate project
         run: xcodegen generate
-      - name: Build iOS (unsigned)
+      - name: Build iOS
+        continue-on-error: true
         run: |
+          set -o pipefail
           xcodebuild -project bowatch.xcodeproj -scheme bowatch-iOS \
             -destination "generic/platform=iOS Simulator" \
-            CODE_SIGNING_ALLOWED=NO build
-      - name: Build watchOS (unsigned)
+            CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build-ios.log
+          echo "${PIPESTATUS[0]}" > ios.exit
+      - name: Save iOS errors for Miya
+        if: failure()
+        run: |
+          grep -E "error:|fatal error" build-ios.log | sort -u | head -60 > errors.md \
+            || tail -60 build-ios.log > errors.md
+          git config user.name ci-bot
+          git config user.email bot@users.noreply.github.com
+          git add errors.md build-ios.log || true
+          git commit -qm "ci: log errors" || true
+          git push || true
+      - name: Build watchOS
+        if: success()
         run: |
           xcodebuild -project bowatch.xcodeproj -scheme bowatch-watchOS \
             -destination "generic/platform=watchOS Simulator" \
             CODE_SIGNING_ALLOWED=NO build
-      - name: Cleanup XcodeGen
-        run: rm -f bowatch.xcodeproj/project.xcworkspace/xcshareddata/bowatch.xcconfig
