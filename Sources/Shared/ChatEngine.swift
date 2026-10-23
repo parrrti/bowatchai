@@ -2,8 +2,8 @@ import SwiftUI
 
 @MainActor
 final class ChatEngine: ObservableObject {
-    struct Msg: Identifiable {
-        let id = UUID()
+    struct Msg: Identifiable, Codable {
+        var id: Int
         let role: String        // "u" / "a"
         let text: String
         let meta: String?
@@ -29,12 +29,25 @@ final class ChatEngine: ObservableObject {
     @Published var modelOverride = ""
     var api: APIClient
     private var booted = false
+    @Published var account: MWState.Acct?
+    @Published var pollInterval: Double
+    private var nextID = 1
+    private var pollTask: Task<Void, Never>?
 
     init() {
         let saved = UserDefaults.standard.string(forKey: "serverURL")
             ?? "https://www.u3923374.nyat.app:59150"
         serverURL = saved
         api = APIClient(baseURL: saved)
+        pollInterval = UserDefaults.standard.double(forKey: "pollInterval")
+        if pollInterval < 0.5 { pollInterval = 2.0 }
+    }
+
+    private func next() -> Int { let i = nextID; nextID += 1; return i }
+
+    func stopRun() {
+        pollTask?.cancel(); pollTask = nil
+        if busy { busy = false; liveLine = "已停止" }
     }
 
     func setServer(_ raw: String) {
@@ -49,20 +62,24 @@ final class ChatEngine: ObservableObject {
         guard !booted || force else { return }
         booted = true
         bootError = ""
+        loadCache()
         do {
             let st = try await api.state()
             authed = true
             persona = st.persona ?? ""
             accountName = st.account?.display_name ?? st.account?.username ?? ""
+            account = st.account
             sessions = st.sessions ?? []
             sid = st.current ?? ""
             ctx = st.ctx
             await loadHistory()
+            saveCache()
         } catch APIError.unauthorized {
             authed = false
         } catch {
             authed = nil
             bootError = error.localizedDescription
+            loadCache()  // 断网也直接亮出本地缓存
         }
     }
 
@@ -85,6 +102,8 @@ final class ChatEngine: ObservableObject {
         sessions = []
         messages = []
         sid = ""
+        account = nil
+        try? UserDefaults.standard.removeObject(forKey: "bowatch.cache")
     }
 
     func loadHistory() async {
@@ -92,10 +111,11 @@ final class ChatEngine: ObservableObject {
         do {
             let h = try await api.history(sid: sid, n: 40)
             messages = h.messages.map {
-                Msg(role: $0.role, text: $0.text, meta: $0.meta,
+                Msg(id: next(), role: $0.role, text: $0.text, meta: $0.meta,
                     thinkN: $0.think_n ?? 0, images: $0.images ?? [],
                     seq: $0.seq ?? 0)
             }
+            saveCache()
         } catch APIError.unauthorized { authed = false }
         catch { bootError = error.localizedDescription }
     }
@@ -111,38 +131,56 @@ final class ChatEngine: ObservableObject {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !busy else { return }
         busy = true; liveText = ""; liveLine = "发送中…"
-        defer { busy = false }
-        do {
-            let (usedSid, since) = try await api.send(text, sid: sid)
-            sid = usedSid
-            messages.append(Msg(role: "u", text: text, meta: nil,
-                                thinkN: 0, images: [], seq: 0))
-            var waited = 0.0
-            while waited < 420 {
-                try await Task.sleep(nanoseconds: 1_500_000_000)
-                waited += 1.5
-                let st = try await api.status(sid: sid, since: since)
-                switch st.state {
-                case "done":
-                    liveText = ""; liveLine = ""
-                    messages.append(Msg(role: "a", text: st.text ?? "（空回复）",
-                                        meta: st.meta, thinkN: st.think_n ?? 0,
-                                        images: st.images ?? [], seq: st.seq ?? 0))
-                    ctx = st.ctx
-                    await refreshMeta()
-                    return
-                case "running":
-                    if let t = st.text { liveText = t }
-                    if let l = st.live, !l.isEmpty { liveLine = l }
-                default:
-                    if liveLine.isEmpty { liveLine = "等待中…" }
+        pollTask?.cancel()
+        let sid0 = sid
+        pollTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let (usedSid, since) = try await self.api.send(text, sid: sid0)
+                self.sid = usedSid
+                self.messages.append(Msg(id: self.next(), role: "u", text: text,
+                                         meta: nil, thinkN: 0, images: [], seq: 0))
+                self.saveCache()
+                var waited = 0.0
+                while waited < 420, !Task.isCancelled {
+                    try await Task.sleep(nanoseconds: UInt64(self.pollInterval * 1e9))
+                    waited += self.pollInterval
+                    let st = try await self.api.status(sid: self.sid, since: since)
+                    switch st.state {
+                    case "done":
+                        self.liveText = ""; self.liveLine = ""
+                        self.messages.append(Msg(id: self.next(), role: "a",
+                                                 text: st.text ?? "（空回复）",
+                                                 meta: st.meta,
+                                                 thinkN: st.think_n ?? 0,
+                                                 images: st.images ?? [],
+                                                 seq: st.seq ?? 0))
+                        self.ctx = st.ctx
+                        await self.refreshMeta()
+                        await self.saveCache()
+                        self.busy = false
+                        return
+                    case "running":
+                        if let t = st.text { self.liveText = t }
+                        if let l = st.live, !l.isEmpty { self.liveLine = l }
+                    default:
+                        if self.liveLine.isEmpty { self.liveLine = "等待中…" }
+                    }
                 }
+                if !Task.isCancelled {
+                    throw APIError.http("回复超时")
+                } else {
+                    return  // stopRun() 自己收尾
+                }
+            } catch APIError.unauthorized {
+                self.authed = false
+                self.busy = false
+            } catch is CancellationError {
+                return
+            } catch {
+                self.liveLine = "出错了：\(error.localizedDescription)"
+                self.busy = false
             }
-            throw APIError.http("回复超时")
-        } catch APIError.unauthorized {
-            authed = false
-        } catch {
-            liveLine = "出错了：\(error.localizedDescription)"
         }
     }
 
@@ -210,5 +248,39 @@ final class ChatEngine: ObservableObject {
 
     func think(seq: Int) async -> String {
         (try? await api.think(sid: sid, seq: seq).think) ?? "（取不到）"
+    }
+
+    private func loadCache() {
+        guard let d = UserDefaults.standard.data(forKey: "bowatch.cache"),
+              let c = try? JSONDecoder().decode(Cache.self, from: d) else { return }
+        sessions = c.sessions
+        sid = c.current
+        messages = c.messages
+        nextID = c.nextID
+        persona = c.persona
+        account = c.account
+        accountName = c.account?.display_name ?? c.account?.username ?? ""
+        ctx = c.ctx
+        modelOverride = c.modelOverride
+    }
+
+    func saveCache() {
+        let c = Cache(sessions: sessions, current: sid, messages: messages,
+                      nextID: nextID, persona: persona, account: account,
+                      ctx: ctx, modelOverride: modelOverride)
+        if let d = try? JSONEncoder().encode(c) {
+            UserDefaults.standard.set(d, forKey: "bowatch.cache")
+        }
+    }
+
+    private struct Cache: Codable {
+        var sessions: [MWState.Sess]
+        var current: String
+        var messages: [Msg]
+        var nextID: Int
+        var persona: String
+        var account: MWState.Acct?
+        var ctx: MWCtx?
+        var modelOverride: String
     }
 }
