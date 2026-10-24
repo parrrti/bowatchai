@@ -21,10 +21,12 @@ final class ChatEngine: ObservableObject {
     @Published var sid = ""
     @Published var sessions: [MWState.Sess] = []
     @Published var messages: [Msg] = []
-    @Published var busy = false
-    @Published var runningSid = ""     // 正在生成的会话，防止串会话显示
-    @Published var liveText = ""
-    @Published var liveLine = ""
+    @Published var running: Set<String> = []   // 正在生成的会话集合（每会话独立）
+    @Published private var liveTexts: [String: String] = [:]
+    @Published private var liveLines: [String: String] = [:]
+    var busy: Bool { !running.isEmpty }
+    var liveText: String { liveTexts[sid] ?? "" }
+    var liveLine: String { liveLines[sid] ?? "" }
     @Published var ctx: MWCtx?
     @Published var models: [String] = []
     @Published var modelOverride = ""
@@ -43,7 +45,7 @@ final class ChatEngine: ObservableObject {
         api.extraCookie = manualCookie
     } }
     private var nextID = 1
-    private var pollTask: Task<Void, Never>?
+    private var pollTasks: [String: Task<Void, Never>] = [:]
 
     init() {
         let saved = UserDefaults.standard.string(forKey: "serverURL")
@@ -60,10 +62,15 @@ final class ChatEngine: ObservableObject {
 
     func applyManualCookie(_ v: String) { manualCookie = v }
 
-    func stopRun() {
-        pollTask?.cancel(); pollTask = nil
-        if busy { busy = false; runningSid = ""; liveLine = "已停止" }
+    func stopRun(_ id: String) {
+        pollTasks[id]?.cancel(); pollTasks[id] = nil
+        if running.contains(id) {
+            running.remove(id)
+            liveTexts[id] = ""; liveLines[id] = "已停止"
+        }
     }
+
+    func stopRun() { stopRun(sid) }
 
     func setServer(_ raw: String) {
         var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -160,20 +167,21 @@ final class ChatEngine: ObservableObject {
 
     func send(_ raw: String) async {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !busy else {
-            notice = "有会话还在生成中，先停下或等它说完"
+        guard !text.isEmpty else { return }
+        guard !running.contains(sid) else {
+            notice = "这个会话还在生成中，先停下或等它说完"
             return
         }
-        guard !text.isEmpty else { return }
-        busy = true; liveText = ""; liveLine = "发送中…"
-        pollTask?.cancel()
         let sid0 = sid
-        runningSid = sid0
-        pollTask = Task { [weak self] in
+        running.insert(sid0)
+        liveTexts[sid0] = ""; liveLines[sid0] = "发送中…"
+        let task = Task { [weak self] in
             guard let self else { return }
+            var activeSid = sid0
             do {
                 let (usedSid, since) = try await self.api.send(text, sid: sid0)
-                self.runningSid = usedSid
+                activeSid = usedSid
+                self.running.insert(usedSid)
                 if self.sid == usedSid {
                     self.messages.append(Msg(id: self.next(), role: "u", text: text,
                                              meta: nil, thinkN: 0, images: [], seq: 0))
@@ -186,7 +194,7 @@ final class ChatEngine: ObservableObject {
                     let st = try await self.api.status(sid: usedSid, since: since)
                     switch st.state {
                     case "done":
-                        self.liveText = ""; self.liveLine = ""
+                        self.liveTexts[usedSid] = ""; self.liveLines[usedSid] = ""
                         if self.sid == usedSid {
                             self.messages.append(Msg(id: self.next(), role: "a",
                                                      text: st.text ?? "（空回复）",
@@ -198,14 +206,16 @@ final class ChatEngine: ObservableObject {
                         }
                         self.ctx = st.ctx
                         await self.refreshMeta()
-                        self.busy = false
-                        self.runningSid = ""
+                        self.running.remove(usedSid)
+                        self.pollTasks[usedSid] = nil
                         return
                     case "running":
-                        if let t = st.text { self.liveText = t }
-                        if let l = st.live, !l.isEmpty { self.liveLine = l }
+                        if let t = st.text { self.liveTexts[usedSid] = t }
+                        if let l = st.live, !l.isEmpty { self.liveLines[usedSid] = l }
                     default:
-                        if self.liveLine.isEmpty { self.liveLine = "等待中…" }
+                        if (self.liveLines[usedSid] ?? "").isEmpty {
+                            self.liveLines[usedSid] = "等待中…"
+                        }
                     }
                 }
                 if !Task.isCancelled {
@@ -215,16 +225,17 @@ final class ChatEngine: ObservableObject {
                 }
             } catch APIError.unauthorized {
                 self.authed = false
-                self.busy = false
-                self.runningSid = ""
+                self.running.remove(activeSid)
+                self.pollTasks[activeSid] = nil
             } catch is CancellationError {
                 return
             } catch {
-                self.liveLine = "出错了：\(error.localizedDescription)"
-                self.busy = false
-                self.runningSid = ""
+                self.liveLines[activeSid] = "出错了：\(error.localizedDescription)"
+                self.running.remove(activeSid)
+                self.pollTasks[activeSid] = nil
             }
         }
+        pollTasks[sid0] = task
     }
 
     func newSession() async {

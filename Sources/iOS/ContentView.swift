@@ -342,7 +342,7 @@ struct SessionDetailView: View {
                     ForEach(engine.messages) { m in
                         Bubble(engine: engine, m: m, openPage: $page).id(m.id)
                     }
-                    if engine.busy, engine.runningSid == engine.sid {
+                    if engine.running.contains(engine.sid) {
                         HStack(spacing: 8) {
                             ProgressView()
                             Text(engine.liveText.isEmpty
@@ -453,7 +453,7 @@ struct SessionDetailView: View {
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
                     .glassEffect(.regular, in: .rect(cornerRadius: 22))
-                if engine.busy, engine.runningSid == engine.sid {
+                if engine.running.contains(engine.sid) {
                     Button { engine.stopRun() } label: {
                         Image(systemName: "stop.fill")
                             .font(.body.weight(.semibold))
@@ -464,15 +464,16 @@ struct SessionDetailView: View {
                     .transition(.move(edge: .trailing))
                 } else {
                     Button {
-                        if draft.trimmingCharacters(in: .whitespaces).isEmpty,
-                           !engine.busy {
-                            focused = true
-                        } else if draft.trimmingCharacters(in: .whitespaces).isEmpty {
-                            Task { await engine.send("") }   // 触发"还在生成中"提示
+                    if draft.trimmingCharacters(in: .whitespaces).isEmpty {
+                        if engine.running.contains(engine.sid) {
+                            Task { await engine.send("") }   // 本会话生成中→提示
                         } else {
-                            let t = draft; draft = ""
-                            Task { await engine.send(t) }
+                            focused = true
                         }
+                    } else {
+                        let t = draft; draft = ""
+                        Task { await engine.send(t) }
+                    }
                     } label: {
                         Image(systemName: "arrowtriangle.up")
                             .font(.body.weight(.semibold))
