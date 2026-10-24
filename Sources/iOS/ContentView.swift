@@ -328,6 +328,7 @@ struct SessionDetailView: View {
                 }
                 .padding(.horizontal)
                 .padding(.top, 4)
+                .padding(.bottom, 72)
             }
             .onScrollPhaseChange { _, new in
                 barHidden = (new == .tracking || new == .decelerating)
