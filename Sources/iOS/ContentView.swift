@@ -336,6 +336,15 @@ struct SessionDetailView: View {
                 proxy.scrollTo(engine.messages.last?.id ?? Self.liveDot,
                                anchor: .bottom)
             }
+            .onChange(of: focused) { _, f in
+                guard f else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    withAnimation {
+                        proxy.scrollTo(engine.messages.last?.id ?? Self.liveDot,
+                                       anchor: .bottom)
+                    }
+                }
+            }
         }
         .navigationTitle(titleText)
         .navigationBarTitleDisplayMode(.inline)
@@ -352,8 +361,9 @@ struct SessionDetailView: View {
             }
         }
         .safeAreaInset(edge: .bottom) {
-            if !barHidden { sendBar }
+            if !barHidden || focused { sendBar }
         }
+        .scrollDismissesKeyboard(.interactively)
         .onAppear { if engine.sid != presetSid {
             Task { await engine.switchSession(presetSid) } } }
     }
