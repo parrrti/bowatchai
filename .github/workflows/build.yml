@@ -42,3 +42,22 @@ jobs:
           git add errors.md
           git commit -qm "ci: log errors" || true
           git push || true
+      - name: Build iOS device (unsigned, for re-signing tools)
+        run: |
+          set -o pipefail
+          xcodebuild -project bowatch.xcodeproj -scheme bowatch-iOS \
+            -destination "generic/platform=iOS" \
+            CODE_SIGNING_ALLOWED=NO \
+            -archivePath build/ios.xcarchive archive 2>&1 | tee build-device.log
+      - name: Package ipa
+        run: |
+          mkdir -p Payload
+          cp -R build/ios.xcarchive/Products/Applications/*.app Payload/
+          zip -qry bowatch.ipa Payload
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: build-${{ github.run_number }}
+          files: bowatch.ipa
+          body: unsigned device build — re-sign with ESign / 爱思助手
