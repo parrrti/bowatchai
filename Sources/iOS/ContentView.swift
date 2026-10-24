@@ -3,11 +3,17 @@ import WebKit
 
 struct ContentView: View {
     @StateObject private var engine = ChatEngine()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         NavigationStack {
             content
                 .task { await engine.boot() }
+        }
+        .onChange(of: scenePhase) { _, s in
+            if s == .active, engine.authed == true {
+                Task { await engine.boot(force: true) }
+            }
         }
     }
 
@@ -58,16 +64,20 @@ struct LoginView: View {
                 Text("错误：\(engine.bootError)")
                     .font(.footnote).foregroundStyle(.red)
             }
-            Section {
-                Color.clear.frame(height: 140)
-                    .onTapGesture(count: 2) { showFallback = true }
-                    .listRowInsets(EdgeInsets())
-            } footer: {
-                Text("备用登录：双击下方空白处")
-                    .font(.caption2).foregroundStyle(.tertiary)
-            }
         }
         .navigationTitle("bowatch 登录")
+        .safeAreaInset(edge: .bottom) {
+            HStack {
+                Spacer()
+                Text("备用登录：双击此处")
+                    .font(.caption2).foregroundStyle(.tertiary)
+                Spacer()
+            }
+            .frame(height: 48)
+            .contentShape(Rectangle())
+            .onTapGesture(count: 2) { showFallback = true }
+            .padding(.bottom, 6)
+        }
         .sheet(isPresented: $showFallback) {
             FallbackLogin(engine: engine)
         }
@@ -355,8 +365,7 @@ struct SessionDetailView: View {
     /// 方框+上三角：发送/终止一体，滚动时整个随 barHidden 藏起来
     private var sendBar: some View {
         HStack(alignment: .bottom, spacing: 10) {
-            TextField("消息", text: $draft, axis: .vertical)
-                .lineLimit(1...5)
+            TextField("消息", text: $draft)
                 .submitLabel(.done)
                 .focused($focused)
                 .onSubmit {
