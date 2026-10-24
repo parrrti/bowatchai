@@ -174,7 +174,7 @@ final class ChatEngine: ObservableObject {
         }
         let sid0 = sid
         running.insert(sid0)
-        liveTexts[sid0] = ""; liveLines[sid0] = "发送中…"
+        liveTexts[sid0] = ""; liveLines[sid0] = "思考中…"
         let task = Task { [weak self] in
             guard let self else { return }
             var activeSid = sid0

@@ -365,24 +365,23 @@ struct SessionDetailView: View {
                 barHidden = (new == .tracking || new == .decelerating)
             }
             .onChange(of: engine.messages.count) { _, _ in
-                proxy.scrollTo(engine.messages.last?.id ?? Self.liveDot,
-                               anchor: .bottom)
+                scrollToBottom(proxy)
             }
             .onChange(of: focused) { _, f in
                 guard f else { return }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                     withAnimation {
-                        proxy.scrollTo(engine.messages.last?.id ?? Self.liveDot,
-                                       anchor: .bottom)
+                        self.scrollToBottom(proxy)
                     }
                 }
             }
             // 进入会话（含新建空会话、历史加载完成后）自动滚到底
-            .onChange(of: engine.sid) { _, _ in
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                    proxy.scrollTo(engine.messages.last?.id ?? Self.liveDot,
-                                   anchor: .bottom)
-                }
+            .task(id: engine.sid) {
+                // LazyVStack 首次布局前 scrollTo 会静默失败，等两拍再滚两拍
+                try? await Task.sleep(nanoseconds: 300_000_000)
+                scrollToBottom(proxy)
+                try? await Task.sleep(nanoseconds: 300_000_000)
+                scrollToBottom(proxy)
             }
         }
         .navigationTitle(titleText)
@@ -437,6 +436,10 @@ struct SessionDetailView: View {
 
     private var titleText: String {
         engine.sessions.first { $0.id == engine.sid }?.name ?? "对话"
+    }
+
+    private func scrollToBottom(_ proxy: ScrollViewProxy) {
+        proxy.scrollTo(engine.messages.last?.id ?? Self.liveDot, anchor: .bottom)
     }
 
     /// iOS 26 Liquid Glass 输入条：有字=发送，空=唤起键盘，生成中=停止
