@@ -236,15 +236,31 @@ final class ChatEngine: ObservableObject {
     }
 
     func delSession() async {
-        guard !sid.isEmpty else { return }
+        await delSession(sid)
+    }
+
+    func delSession(_ id: String) async {
+        guard !id.isEmpty else { return }
         do {
-            _ = try await api.delSession(sid)
+            _ = try await api.delSession(id)
             notice = "会话已删"
             await boot(force: true)
         } catch APIError.unauthorized { authed = false }
         catch {
             notice = "删除失败：\(error.localizedDescription)"
         }
+    }
+
+    func compactSession(_ id: String) async {
+        notice = "压缩中…"
+        do {
+            let r = try await api.compact(sid: id, force: false)
+            var msg = r.compacted ? "已压缩" : "不需要压缩"
+            if let d = r.detail, !d.isEmpty { msg += "：" + String(d.suffix(120)) }
+            notice = msg
+            if id == sid { await refreshCtx() }
+        } catch APIError.unauthorized { authed = false }
+        catch { notice = "压缩失败：\(error.localizedDescription)" }
     }
 
     func loadModels() async {

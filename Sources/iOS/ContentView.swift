@@ -11,7 +11,8 @@ struct ContentView: View {
                 .task { await engine.boot() }
         }
         .onChange(of: scenePhase) { _, s in
-            if s == .active, engine.authed == true {
+            // 生成中不触发前台刷新，避免和 send 的"done"本地追加撞车导致消息重复
+            if s == .active, engine.authed == true, !engine.busy {
                 Task { await engine.boot(force: true) }
             }
         }
@@ -161,6 +162,8 @@ struct FallbackLogin: View {
 struct SessionListView: View {
     @ObservedObject var engine: ChatEngine
     @State private var showSettings = false
+    @State private var actionTarget: String?
+    @State private var confirmDelete = false
 
     var body: some View {
         List(engine.sessions) { s in
@@ -173,6 +176,28 @@ struct SessionListView: View {
                     }
                 }
             }
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                Button {
+                    Task { await engine.compactSession(s.id) }
+                } label: {
+                    Label("压缩", systemImage: "arrow.down.backward.and.arrow.up.forward")
+                }.tint(.blue)
+                Button(role: .destructive) {
+                    actionTarget = s.id
+                    confirmDelete = true
+                } label: {
+                    Label("删除", systemImage: "trash")
+                }
+            }
+        }
+        .confirmationDialog("删除「\(actionTargetName)」？",
+                            isPresented: $confirmDelete, titleVisible: true) {
+            Button("删除会话", role: .destructive) {
+                if let id = actionTarget { Task { await engine.delSession(id) } }
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("此操作不可撤销")
         }
         .navigationTitle(engine.persona.isEmpty ? "bowatch" : engine.persona)
         .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
@@ -193,6 +218,10 @@ struct SessionListView: View {
             }
         }
         .sheet(isPresented: $showSettings) { SettingsSheet(engine: engine) }
+    }
+
+    private var actionTargetName: String {
+        engine.sessions.first { $0.id == actionTarget }?.name ?? "该会话"
     }
 }
 
