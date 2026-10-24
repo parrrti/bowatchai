@@ -174,6 +174,7 @@ struct SessionListView: View {
             }
         }
         .navigationTitle(engine.persona.isEmpty ? "bowatch" : engine.persona)
+        .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
         .navigationDestination(for: String.self) { sid in
             SessionDetailView(engine: engine, presetSid: sid)
         }
@@ -226,15 +227,22 @@ struct SettingsSheet: View {
                     }
                 }
                 Section("对话") {
-                    Button("新建对话") { dismiss()
-                        Task { await engine.newSession() } }
-                    Button("压缩对话") { dismiss()
-                        Task { await engine.compact(force: false) } }
-                    Button("删除对话", role: .destructive) { confirmDelete = true }
+                    Button("新建对话") {
+                        dismiss()
+                        Task {
+                            await engine.newSession()
+                            await engine.boot(force: true)
+                        }
+                    }
+                    Button("压缩对话「\(currentName)」") { confirmCompact = true }
+                    Button("删除对话「\(currentName)」", role: .destructive) {
+                        confirmDelete = true
+                    }
                 }
                 Section {
-                    Button("刷新全部信息") { dismiss()
-                        Task { await engine.boot(force: true) } }
+                    Button("刷新全部信息") {
+                        Task { await engine.boot(force: true) }
+                    }
                 }
                 if !engine.notice.isEmpty {
                     Section { Text(engine.notice).font(.footnote)
@@ -242,13 +250,33 @@ struct SettingsSheet: View {
                             .onTapGesture { engine.notice = "" } }
                 }
             }
-            .alert("删除当前对话？", isPresented: $confirmDelete) {
-                Button("删除", role: .destructive) { dismiss()
-                    Task { await engine.delSession() } }
+            .alert("压缩「\(currentName)」？", isPresented: $confirmCompact) {
+                Button("压缩") {
+                    dismiss()
+                    Task {
+                        await engine.compact(force: false)
+                        await engine.boot(force: true)
+                    }
+                }
+                Button("取消", role: .cancel) {}
+            }
+            .alert("删除「\(currentName)」？", isPresented: $confirmDelete) {
+                Button("删除", role: .destructive) {
+                    dismiss()
+                    Task {
+                        await engine.delSession()
+                        await engine.boot(force: true)
+                    }
+                }
+                Button("取消", role: .cancel) {}
             }
             .navigationTitle("设置")
             .toolbar { Button("完成") { dismiss() } }
         }
+    }
+
+    private var currentName: String {
+        engine.sessions.first { $0.id == engine.sid }?.name ?? "当前对话"
     }
 }
 
@@ -311,7 +339,7 @@ struct SessionDetailView: View {
                     ForEach(engine.messages) { m in
                         Bubble(engine: engine, m: m, openPage: $page).id(m.id)
                     }
-                    if engine.busy {
+                    if engine.busy, engine.runningSid == engine.sid {
                         HStack(spacing: 8) {
                             ProgressView()
                             Text(engine.liveText.isEmpty
@@ -373,7 +401,7 @@ struct SessionDetailView: View {
         engine.sessions.first { $0.id == engine.sid }?.name ?? "对话"
     }
 
-    /// 方框+上三角：发送/终止一体，滚动时整个随 barHidden 藏起来
+    /// iOS 26 Liquid Glass 输入条：有字=发送，空=唤起键盘，生成中=停止
     private var sendBar: some View {
         HStack(alignment: .bottom, spacing: 10) {
             TextField("消息", text: $draft)
@@ -384,21 +412,23 @@ struct SessionDetailView: View {
                     Task { await engine.send(t) }
                 }
                 .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(Color(uiColor: .secondarySystemBackground),
-                            in: Capsule())
-            if engine.busy {
+                .padding(.vertical, 8)
+            if engine.busy, engine.runningSid == engine.sid {
                 Button { engine.stopRun() } label: {
                     Image(systemName: "stop.fill")
                         .font(.body.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 40, height: 40)
-                        .background(Color.red, in: Circle())
-                }.transition(.move(edge: .trailing))
+                        .frame(width: 36, height: 36)
+                }
+                .buttonStyle(.glassProminent)
+                .tint(.red)
+                .transition(.move(edge: .trailing))
             } else {
                 Button {
-                    if draft.trimmingCharacters(in: .whitespaces).isEmpty {
+                    if draft.trimmingCharacters(in: .whitespaces).isEmpty,
+                       !engine.busy {
                         focused = true
+                    } else if draft.trimmingCharacters(in: .whitespaces).isEmpty {
+                        Task { await engine.send("") }   // 触发"还在生成中"提示
                     } else {
                         let t = draft; draft = ""
                         Task { await engine.send(t) }
@@ -406,16 +436,16 @@ struct SessionDetailView: View {
                 } label: {
                     Image(systemName: "arrowtriangle.up")
                         .font(.body.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 40, height: 40)
-                        .background(Color.accentColor, in: Circle())
+                        .frame(width: 36, height: 36)
                 }
+                .buttonStyle(.glassProminent)
             }
         }
         .animation(.snappy(duration: 0.2), value: engine.busy)
+        .glassEffectContainer(spacing: 8)
+        .glassEffect(.regular, in: .rect(cornerRadius: 24))
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(.bar)
     }
 }
 

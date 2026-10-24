@@ -11,6 +11,13 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - name: Select newest Xcode (26 for Liquid Glass)
+        run: |
+          ls /Applications | grep -i xcode || true
+          X=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          [ -z "$X" ] && X=/Applications/Xcode.app
+          sudo xcode-select -s "$X"
+          xcodebuild -version
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate project

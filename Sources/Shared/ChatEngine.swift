@@ -22,6 +22,7 @@ final class ChatEngine: ObservableObject {
     @Published var sessions: [MWState.Sess] = []
     @Published var messages: [Msg] = []
     @Published var busy = false
+    @Published var runningSid = ""     // 正在生成的会话，防止串会话显示
     @Published var liveText = ""
     @Published var liveLine = ""
     @Published var ctx: MWCtx?
@@ -59,7 +60,7 @@ final class ChatEngine: ObservableObject {
 
     func stopRun() {
         pollTask?.cancel(); pollTask = nil
-        if busy { busy = false; liveLine = "已停止" }
+        if busy { busy = false; runningSid = ""; liveLine = "已停止" }
     }
 
     func setServer(_ raw: String) {
@@ -143,36 +144,46 @@ final class ChatEngine: ObservableObject {
 
     func send(_ raw: String) async {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, !busy else { return }
+        guard !busy else {
+            notice = "有会话还在生成中，先停下或等它说完"
+            return
+        }
+        guard !text.isEmpty else { return }
         busy = true; liveText = ""; liveLine = "发送中…"
         pollTask?.cancel()
         let sid0 = sid
+        runningSid = sid0
         pollTask = Task { [weak self] in
             guard let self else { return }
             do {
                 let (usedSid, since) = try await self.api.send(text, sid: sid0)
-                self.sid = usedSid
-                self.messages.append(Msg(id: self.next(), role: "u", text: text,
-                                         meta: nil, thinkN: 0, images: [], seq: 0))
-                self.saveCache()
+                self.runningSid = usedSid
+                if self.sid == usedSid {
+                    self.messages.append(Msg(id: self.next(), role: "u", text: text,
+                                             meta: nil, thinkN: 0, images: [], seq: 0))
+                    self.saveCache()
+                }
                 var waited = 0.0
                 while waited < 420, !Task.isCancelled {
                     try await Task.sleep(nanoseconds: UInt64(self.pollInterval * 1e9))
                     waited += self.pollInterval
-                    let st = try await self.api.status(sid: self.sid, since: since)
+                    let st = try await self.api.status(sid: usedSid, since: since)
                     switch st.state {
                     case "done":
                         self.liveText = ""; self.liveLine = ""
-                        self.messages.append(Msg(id: self.next(), role: "a",
-                                                 text: st.text ?? "（空回复）",
-                                                 meta: st.meta,
-                                                 thinkN: st.think_n ?? 0,
-                                                 images: st.images ?? [],
-                                                 seq: st.seq ?? 0))
+                        if self.sid == usedSid {
+                            self.messages.append(Msg(id: self.next(), role: "a",
+                                                     text: st.text ?? "（空回复）",
+                                                     meta: st.meta,
+                                                     thinkN: st.think_n ?? 0,
+                                                     images: st.images ?? [],
+                                                     seq: st.seq ?? 0))
+                            self.saveCache()
+                        }
                         self.ctx = st.ctx
                         await self.refreshMeta()
-                        await self.saveCache()
                         self.busy = false
+                        self.runningSid = ""
                         return
                     case "running":
                         if let t = st.text { self.liveText = t }
@@ -189,11 +200,13 @@ final class ChatEngine: ObservableObject {
             } catch APIError.unauthorized {
                 self.authed = false
                 self.busy = false
+                self.runningSid = ""
             } catch is CancellationError {
                 return
             } catch {
                 self.liveLine = "出错了：\(error.localizedDescription)"
                 self.busy = false
+                self.runningSid = ""
             }
         }
     }

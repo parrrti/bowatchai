@@ -8,7 +8,7 @@ struct LetterAvatar: View {
             .font(.footnote).bold()
             .foregroundStyle(.white)
             .frame(width: 30, height: 30)
-            .background(Circle().fill(Color.accentColor))
+            .background(Circle().fill(Color.accentColor.gradient))
     }
 }
 

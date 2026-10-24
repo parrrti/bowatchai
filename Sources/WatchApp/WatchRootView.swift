@@ -75,6 +75,7 @@ struct WatchSessionList: View {
             }
         }
         .navigationTitle(engine.persona.isEmpty ? "bowatch" : engine.persona)
+        .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
         .navigationDestination(for: String.self) { sid in
             WatchChatDetail(engine: engine, presetSid: sid)
         }
