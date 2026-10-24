@@ -1,4 +1,5 @@
 import SwiftUI
+import WebKit
 
 struct ContentView: View {
     @StateObject private var engine = ChatEngine()
@@ -33,6 +34,7 @@ struct LoginView: View {
     @State private var serverDraft = ""
     @State private var userDraft = ""
     @State private var pwDraft = ""
+    @State private var showFallback = false
 
     var body: some View {
         Form {
@@ -58,6 +60,81 @@ struct LoginView: View {
             }
         }
         .navigationTitle("bowatch 登录")
+        .onTapGesture(count: 2) { showFallback = true }   // 双击空白 → 备用方案
+        .sheet(isPresented: $showFallback) {
+            FallbackLogin(engine: engine)
+        }
+    }
+}
+
+// -------------------------------------------- 备用方案：WebUI手动登录读token
+
+struct SafariLogin: UIViewRepresentable {
+    let url: URL
+    func makeUIView(context: Context) -> WKWebView {
+        let w = WKWebView()
+        w.load(URLRequest(url: url))
+        return w
+    }
+    func updateUIView(_ uiView: WKWebView, context: Context) {}
+}
+
+struct FallbackLogin: View {
+    @ObservedObject var engine: ChatEngine
+    @Environment(\.dismiss) private var dismiss
+    @State private var urlText = ""
+    @State private var webUrl: URL?
+    @State private var hint = ""
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 12) {
+                TextField("MiYu WebUI 地址，如 http://192.168.1.186:8300",
+                          text: $urlText)
+                    .textFieldStyle(.roundedBorder)
+                    .keyboardType(.URL)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+                if let u = webUrl {
+                    SafariLogin(url: u)
+                    Button {
+                        grabCookie(from: u)
+                    } label: {
+                        Label("我已登录，读取token", systemImage: "key")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                } else {
+                    Button("打开登录页") {
+                        var s = urlText.trimmingCharacters(in: .whitespaces)
+                        while s.hasSuffix("/") { s.removeLast() }
+                        if !s.contains("://") { s = "http://" + s }
+                        webUrl = URL(string: s)
+                    }
+                    .disabled(urlText.isEmpty)
+                }
+                if !hint.isEmpty {
+                    Text(hint).font(.footnote).foregroundStyle(.red)
+                }
+                Text("在网页里登录 miyu 账号后点「读取token」，App 会存下会话凭证直连。")
+                    .font(.caption).foregroundStyle(.secondary)
+                Spacer()
+            }
+            .padding()
+            .navigationTitle("备用登录")
+            .toolbar { Button("关闭") { dismiss() } }
+        }
+    }
+
+    private func grabCookie(from url: URL) {
+        guard let c = HTTPCookieStorage.shared.cookies(for: url)?
+            .first(where: { $0.name.lowercased().contains("session") }) else {
+            hint = "还没读到登录cookie——请确认已在上方网页里登录成功"
+            return
+        }
+        engine.applyManualCookie("\(c.name)=\(c.value)")
+        dismiss()
+        Task { await engine.boot(force: true) }
     }
 }
 

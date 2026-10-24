@@ -76,6 +76,8 @@ struct MWCompact: Codable { let compacted: Bool; let detail: String? }
 final class APIClient {
     static let prefix = "/watch"
     private(set) var baseURL: String
+    /// 备用手动登录拿到的 cookie（"name=value"），有则每请求都带
+    var extraCookie: String?
 
     init(baseURL: String) { self.baseURL = baseURL }
 
@@ -93,6 +95,7 @@ final class APIClient {
             r.httpBody = try? JSONSerialization.data(withJSONObject: body)
             r.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
+        if let c = extraCookie { r.setValue(c, forHTTPHeaderField: "Cookie") }
         return r
     }
 

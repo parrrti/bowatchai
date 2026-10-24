@@ -31,6 +31,14 @@ final class ChatEngine: ObservableObject {
     private var booted = false
     @Published var account: MWState.Acct?
     @Published var pollInterval: Double
+    @Published var manualCookie: String? { didSet {
+        if let c = manualCookie {
+            UserDefaults.standard.set(c, forKey: "manualCookie")
+        } else {
+            UserDefaults.standard.removeObject(forKey: "manualCookie")
+        }
+        api.extraCookie = manualCookie
+    } }
     private var nextID = 1
     private var pollTask: Task<Void, Never>?
 
@@ -41,9 +49,13 @@ final class ChatEngine: ObservableObject {
         api = APIClient(baseURL: saved)
         pollInterval = UserDefaults.standard.double(forKey: "pollInterval")
         if pollInterval < 0.5 { pollInterval = 2.0 }
+        manualCookie = UserDefaults.standard.string(forKey: "manualCookie")
+        api.extraCookie = manualCookie
     }
 
     private func next() -> Int { let i = nextID; nextID += 1; return i }
+
+    func applyManualCookie(_ v: String) { manualCookie = v }
 
     func stopRun() {
         pollTask?.cancel(); pollTask = nil
@@ -98,6 +110,7 @@ final class ChatEngine: ObservableObject {
 
     func logout() async {
         try? await api.logout()
+        manualCookie = nil
         authed = false
         booted = false
         sessions = []
