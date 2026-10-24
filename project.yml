@@ -11,10 +11,12 @@ targets:
     sources:
       - Sources/iOS
       - Sources/Shared
+      - Assets.xcassets
     settings:
       base:
         SWIFT_VERSION: "5.9"
         GENERATE_INFOPLIST_FILE: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
   bowatchWatch:
@@ -23,10 +25,12 @@ targets:
     sources:
       - Sources/WatchApp
       - Sources/Shared
+      - Assets.xcassets
     settings:
       base:
         SWIFT_VERSION: "5.9"
         GENERATE_INFOPLIST_FILE: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 schemes:
   bowatch-iOS:
     build:
