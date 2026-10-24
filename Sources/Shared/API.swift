@@ -6,6 +6,16 @@ enum APIError: Error {
     case badURL
 }
 
+extension APIError: LocalizedError {
+    var errorDescription: String? {
+        switch self {
+        case .unauthorized: return "登录已过期或未登录"
+        case .http(let m): return "服务器返回 \(m)"
+        case .badURL: return "服务器地址格式不对"
+        }
+    }
+}
+
 struct MWCtx: Codable { let used: Int; let window: Int; let ratio: Double }
 struct MWCtxWrap: Codable { let ctx: MWCtx? }
 

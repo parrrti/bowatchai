@@ -53,6 +53,7 @@ final class ChatEngine: ObservableObject {
     func setServer(_ raw: String) {
         var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         while s.hasSuffix("/") { s.removeLast() }
+        if !s.contains("://") { s = "https://" + s }
         serverURL = s
         UserDefaults.standard.set(s, forKey: "serverURL")
         api = APIClient(baseURL: s)
