@@ -58,9 +58,16 @@ struct LoginView: View {
                 Text("错误：\(engine.bootError)")
                     .font(.footnote).foregroundStyle(.red)
             }
+            Section {
+                Color.clear.frame(height: 140)
+                    .onTapGesture(count: 2) { showFallback = true }
+                    .listRowInsets(EdgeInsets())
+            } footer: {
+                Text("备用登录：双击下方空白处")
+                    .font(.caption2).foregroundStyle(.tertiary)
+            }
         }
         .navigationTitle("bowatch 登录")
-        .onTapGesture(count: 2) { showFallback = true }   // 双击空白 → 备用方案
         .sheet(isPresented: $showFallback) {
             FallbackLogin(engine: engine)
         }
