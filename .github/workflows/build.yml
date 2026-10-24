@@ -54,10 +54,13 @@ jobs:
           mkdir -p Payload
           cp -R build/ios.xcarchive/Products/Applications/*.app Payload/
           zip -qry bowatch.ipa Payload
+      - name: Read version
+        id: ver
+        run: echo "tag=v$(cat VERSION)" >> "$GITHUB_OUTPUT"
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: build-${{ github.run_number }}
-          name: build-${{ github.run_number }}
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: ${{ steps.ver.outputs.tag }}
           files: bowatch.ipa
           body: unsigned device build — re-sign with ESign / 爱思助手
