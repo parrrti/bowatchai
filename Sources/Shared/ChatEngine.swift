@@ -31,7 +31,9 @@ final class ChatEngine: ObservableObject {
     var api: APIClient
     private var booted = false
     @Published var account: MWState.Acct?
-    @Published var pollInterval: Double
+    @Published var pollInterval: Double { didSet {
+        UserDefaults.standard.set(pollInterval, forKey: "pollInterval")
+    } }
     @Published var manualCookie: String? { didSet {
         if let c = manualCookie {
             UserDefaults.standard.set(c, forKey: "manualCookie")

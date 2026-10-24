@@ -199,8 +199,6 @@ struct SessionListView: View {
 struct SettingsSheet: View {
     @ObservedObject var engine: ChatEngine
     @Environment(\.dismiss) private var dismiss
-    @State private var confirmDelete = false
-    @State private var confirmCompact = false
 
     var body: some View {
         NavigationStack {
@@ -236,10 +234,6 @@ struct SettingsSheet: View {
                             await engine.boot(force: true)
                         }
                     }
-                    Button("压缩对话「\(currentName)」") { confirmCompact = true }
-                    Button("删除对话「\(currentName)」", role: .destructive) {
-                        confirmDelete = true
-                    }
                 }
                 Section {
                     Button("刷新全部信息") {
@@ -252,33 +246,9 @@ struct SettingsSheet: View {
                             .onTapGesture { engine.notice = "" } }
                 }
             }
-            .alert("压缩「\(currentName)」？", isPresented: $confirmCompact) {
-                Button("压缩") {
-                    dismiss()
-                    Task {
-                        await engine.compact(force: false)
-                        await engine.boot(force: true)
-                    }
-                }
-                Button("取消", role: .cancel) {}
-            }
-            .alert("删除「\(currentName)」？", isPresented: $confirmDelete) {
-                Button("删除", role: .destructive) {
-                    dismiss()
-                    Task {
-                        await engine.delSession()
-                        await engine.boot(force: true)
-                    }
-                }
-                Button("取消", role: .cancel) {}
-            }
             .navigationTitle("设置")
             .toolbar { Button("完成") { dismiss() } }
         }
-    }
-
-    private var currentName: String {
-        engine.sessions.first { $0.id == engine.sid }?.name ?? "当前对话"
     }
 }
 
@@ -331,6 +301,8 @@ struct SessionDetailView: View {
     @State private var draft = ""
     @State private var barHidden = false
     @State private var page: DetailPage?
+    @State private var confirmDelete = false
+    @State private var confirmCompact = false
     @FocusState private var focused: Bool
     private static let liveDot = Int.max
 
@@ -376,6 +348,13 @@ struct SessionDetailView: View {
                     }
                 }
             }
+            // 进入会话（含新建空会话、历史加载完成后）自动滚到底
+            .onChange(of: engine.sid) { _, _ in
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    proxy.scrollTo(engine.messages.last?.id ?? Self.liveDot,
+                                   anchor: .bottom)
+                }
+            }
         }
         .navigationTitle(titleText)
         .navigationBarTitleDisplayMode(.inline)
@@ -395,8 +374,36 @@ struct SessionDetailView: View {
             if !barHidden || focused { sendBar }
         }
         .scrollDismissesKeyboard(.interactively)
+        .toolbar {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Menu {
+                    Button { confirmCompact = true } label: {
+                        Label("压缩对话", systemImage: "arrow.down.backward.and.arrow.up.forward")
+                    }
+                    Button(role: .destructive) { confirmDelete = true } label: {
+                        Label("删除对话", systemImage: "trash")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+            }
+        }
+        .alert("压缩「\(sessionName)」？", isPresented: $confirmCompact) {
+            Button("压缩") { Task { await engine.compact(force: false) } }
+            Button("取消", role: .cancel) {}
+        }
+        .alert("删除「\(sessionName)」？", isPresented: $confirmDelete) {
+            Button("删除", role: .destructive) {
+                Task { await engine.delSession() }
+            }
+            Button("取消", role: .cancel) {}
+        }
         .onAppear { if engine.sid != presetSid {
             Task { await engine.switchSession(presetSid) } } }
+    }
+
+    private var sessionName: String {
+        engine.sessions.first { $0.id == engine.sid }?.name ?? "当前对话"
     }
 
     private var titleText: String {
