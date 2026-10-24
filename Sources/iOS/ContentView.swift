@@ -405,47 +405,48 @@ struct SessionDetailView: View {
 
     /// iOS 26 Liquid Glass 输入条：有字=发送，空=唤起键盘，生成中=停止
     private var sendBar: some View {
-        HStack(alignment: .bottom, spacing: 10) {
-            TextField("消息", text: $draft)
-                .submitLabel(.done)
-                .focused($focused)
-                .onSubmit {
-                    let t = draft; draft = ""
-                    Task { await engine.send(t) }
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-            if engine.busy, engine.runningSid == engine.sid {
-                Button { engine.stopRun() } label: {
-                    Image(systemName: "stop.fill")
-                        .font(.body.weight(.semibold))
-                        .frame(width: 36, height: 36)
-                }
-                .buttonStyle(.glassProminent)
-                .tint(.red)
-                .transition(.move(edge: .trailing))
-            } else {
-                Button {
-                    if draft.trimmingCharacters(in: .whitespaces).isEmpty,
-                       !engine.busy {
-                        focused = true
-                    } else if draft.trimmingCharacters(in: .whitespaces).isEmpty {
-                        Task { await engine.send("") }   // 触发"还在生成中"提示
-                    } else {
+        GlassEffectContainer(spacing: 8) {
+            HStack(alignment: .center, spacing: 8) {
+                TextField("消息", text: $draft)
+                    .submitLabel(.done)
+                    .focused($focused)
+                    .onSubmit {
                         let t = draft; draft = ""
                         Task { await engine.send(t) }
                     }
-                } label: {
-                    Image(systemName: "arrowtriangle.up")
-                        .font(.body.weight(.semibold))
-                        .frame(width: 36, height: 36)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .glassEffect(.regular, in: .rect(cornerRadius: 22))
+                if engine.busy, engine.runningSid == engine.sid {
+                    Button { engine.stopRun() } label: {
+                        Image(systemName: "stop.fill")
+                            .font(.body.weight(.semibold))
+                            .frame(width: 36, height: 36)
+                    }
+                    .buttonStyle(.glassProminent)
+                    .tint(.red)
+                    .transition(.move(edge: .trailing))
+                } else {
+                    Button {
+                        if draft.trimmingCharacters(in: .whitespaces).isEmpty,
+                           !engine.busy {
+                            focused = true
+                        } else if draft.trimmingCharacters(in: .whitespaces).isEmpty {
+                            Task { await engine.send("") }   // 触发"还在生成中"提示
+                        } else {
+                            let t = draft; draft = ""
+                            Task { await engine.send(t) }
+                        }
+                    } label: {
+                        Image(systemName: "arrowtriangle.up")
+                            .font(.body.weight(.semibold))
+                            .frame(width: 36, height: 36)
+                    }
+                    .buttonStyle(.glassProminent)
                 }
-                .buttonStyle(.glassProminent)
             }
         }
         .animation(.snappy(duration: 0.2), value: engine.busy)
-        .glassEffectContainer(spacing: 8)
-        .glassEffect(.regular, in: .rect(cornerRadius: 24))
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
     }
