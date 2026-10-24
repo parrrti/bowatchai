@@ -372,30 +372,39 @@ struct SessionDetailView: View {
                     let t = draft; draft = ""
                     Task { await engine.send(t) }
                 }
-                .padding(10)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
                 .background(Color(uiColor: .secondarySystemBackground),
-                            in: RoundedRectangle(cornerRadius: 14))
+                            in: Capsule())
             if engine.busy {
                 Button { engine.stopRun() } label: {
                     Image(systemName: "stop.fill")
                         .font(.body.weight(.semibold))
-                        .frame(width: 38, height: 38)
-                        .background(Color.red.opacity(0.15),
-                                    in: RoundedRectangle(cornerRadius: 12))
+                        .foregroundStyle(.white)
+                        .frame(width: 40, height: 40)
+                        .background(Color.red, in: Circle())
                 }.transition(.move(edge: .trailing))
             } else {
-                Button { focused = true } label: {
+                Button {
+                    if draft.trimmingCharacters(in: .whitespaces).isEmpty {
+                        focused = true
+                    } else {
+                        let t = draft; draft = ""
+                        Task { await engine.send(t) }
+                    }
+                } label: {
                     Image(systemName: "arrowtriangle.up")
                         .font(.body.weight(.semibold))
-                        .frame(width: 38, height: 38)
-                        .background(Color.accentColor.opacity(0.15),
-                                    in: RoundedRectangle(cornerRadius: 12))
+                        .foregroundStyle(.white)
+                        .frame(width: 40, height: 40)
+                        .background(Color.accentColor, in: Circle())
                 }
             }
         }
-        .animation(.snappy(duration: 0.2), value: barHidden)
         .animation(.snappy(duration: 0.2), value: engine.busy)
-        .padding(8)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(.bar)
     }
 }
 
@@ -405,35 +414,66 @@ struct Bubble: View {
     @Binding var openPage: DetailPage?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
             if m.role == "u" {
-                HStack { Spacer()
-                    Text(m.text)
-                        .padding(10)
-                        .background(Color.accentColor.opacity(0.85),
-                                    in: RoundedRectangle(cornerRadius: 14))
+                HStack {
+                    Spacer(minLength: 48)
+                    Text(m.text).font(.body)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
                         .foregroundStyle(.white)
+                        .background(Color.accentColor,
+                                    in: RoundedRectangle(cornerRadius: 18))
                 }
             } else {
-                Text(m.text).font(.body).textSelection(.enabled)
-                    .padding(10)
-                    .background(Color(uiColor: .secondarySystemBackground),
-                                in: RoundedRectangle(cornerRadius: 14))
-            }
-            if !m.images.isEmpty {
-                HStack(spacing: 8) {
-                    ForEach(Array(m.images.enumerated()), id: \.offset) { i, mid in
-                        Button("[图\(i + 1)]") { openPage = .image(mid) }
-                            .font(.footnote).buttonStyle(.bordered)
+                VStack(alignment: .leading, spacing: 8) {
+                    if !m.text.isEmpty {
+                        Text(m.text).font(.body)
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    if !m.images.isEmpty {
+                        HStack(spacing: 8) {
+                            ForEach(Array(m.images.enumerated()), id: \.offset) { i, mid in
+                                Button {
+                                    openPage = .image(mid)
+                                } label: {
+                                    Label("[图\(i + 1)]", systemImage: "photo")
+                                        .font(.caption)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 6)
+                                        .background(Color.accentColor.opacity(0.12),
+                                                    in: Capsule())
+                                        .foregroundStyle(Color.accentColor)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                    if m.thinkN > 0 {
+                        Button {
+                            openPage = .think(m.seq)
+                        } label: {
+                            Label("[思考·\(m.thinkN)字]", systemImage: "brain.head.profile")
+                                .font(.caption)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(Color.purple.opacity(0.12),
+                                            in: Capsule())
+                                .foregroundStyle(.purple)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(Color(uiColor: .secondarySystemBackground),
+                            in: RoundedRectangle(cornerRadius: 18))
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            if m.thinkN > 0 {
-                Button("[思考·\(m.thinkN)字]") { openPage = .think(m.seq) }
-                    .font(.footnote).buttonStyle(.bordered)
-            }
-            if let meta = m.meta, !meta.isEmpty {
-                Text(meta).font(.caption2).foregroundStyle(.secondary)
+            if m.role == "a", let meta = m.meta, !meta.isEmpty {
+                Text(meta).font(.caption2).foregroundStyle(.tertiary)
+                    .padding(.leading, 4)
             }
         }
     }
