@@ -24,7 +24,8 @@ struct CookieImage: View {
 
     private func load() async {
         let base = UserDefaults.standard.string(forKey: "serverURL") ?? ""
-        guard !base.isEmpty, let u = URL(string: base + "/watch" + path) else { return }
+        guard !base.isEmpty,
+              let u = URL(string: APIClient.join(base, path)) else { return }
         if let (data, resp) = try? await URLSession.shared.data(from: u),
            (resp as? HTTPURLResponse)?.statusCode == 200 {
             self.img = UIImage(data: data)

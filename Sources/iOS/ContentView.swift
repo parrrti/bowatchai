@@ -38,8 +38,8 @@ struct LoginView: View {
 
     var body: some View {
         Form {
-            Section("服务器") {
-                TextField("https://www.u3923374.nyat.app:59150", text: $serverDraft)
+                Section("服务器") {
+                TextField("https://…nyat.app:59150 或 http://192.168.1.186/watch_ai", text: $serverDraft)
                     .keyboardType(.URL)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)

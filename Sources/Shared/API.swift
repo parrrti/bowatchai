@@ -79,10 +79,24 @@ final class APIClient {
     /// 备用手动登录拿到的 cookie（"name=value"），有则每请求都带
     var extraCookie: String?
 
-    init(baseURL: String) { self.baseURL = baseURL }
+    /// 用户地址若已自带 /watch 或 /watch_ai 前缀，就原样使用，不再叠加
+    private let effectivePrefix: String
+
+    static func join(_ base: String, _ path: String) -> String {
+        let b = base.lowercased()
+        let p = (b.hasSuffix("/watch") || b.hasSuffix("/watch_ai")) ? "" : prefix
+        return base + p + path
+    }
+
+    init(baseURL: String) {
+        self.baseURL = baseURL
+        let b = baseURL.lowercased()
+        effectivePrefix = (b.hasSuffix("/watch") || b.hasSuffix("/watch_ai"))
+            ? "" : Self.prefix
+    }
 
     func url(_ path: String) -> URL? {
-        URL(string: baseURL + Self.prefix + path)
+        URL(string: Self.join(baseURL, path))
     }
 
     private func req(_ path: String, method: String = "GET",
