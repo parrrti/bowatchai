@@ -101,12 +101,26 @@ final class ChatEngine: ObservableObject {
         bootError = ""
         do {
             try await api.login(user, pw)
+            // miyu下发的是会话级cookie，杀进程即丢——当场固化成手动token
+            if let base = URL(string: serverURL),
+               let c = HTTPCookieStorage.shared.cookies(for: base)?
+                   .first(where: { $0.name.lowercased().contains("session") }) {
+                manualCookie = "\(c.name)=\(c.value)"
+            }
             booted = false
             await boot(force: true)
         } catch {
             authed = false
             bootError = error.localizedDescription
         }
+    }
+
+    /// 输入服务器地址时即时存盘（未登录也保留）
+    func persistDraft(_ raw: String) {
+        var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        while s.hasSuffix("/") { s.removeLast() }
+        if !s.contains("://") { s = "https://" + s }
+        UserDefaults.standard.set(s, forKey: "serverURL")
     }
 
     func logout() async {

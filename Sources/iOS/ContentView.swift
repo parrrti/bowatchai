@@ -50,6 +50,7 @@ struct LoginView: View {
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
                     .onAppear { if serverDraft.isEmpty { serverDraft = engine.serverURL } }
+                    .onChange(of: serverDraft) { _, v in engine.persistDraft(v) }
             }
             Section("登录") {
                 TextField("用户名", text: $userDraft)
