@@ -200,6 +200,7 @@ struct SettingsSheet: View {
     @ObservedObject var engine: ChatEngine
     @Environment(\.dismiss) private var dismiss
     @State private var confirmDelete = false
+    @State private var confirmCompact = false
 
     var body: some View {
         NavigationStack {
