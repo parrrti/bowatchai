@@ -191,7 +191,7 @@ struct SessionListView: View {
             }
         }
         .confirmationDialog("删除「\(actionTargetName)」？",
-                            isPresented: $confirmDelete, titleVisible: true) {
+                            isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("删除会话", role: .destructive) {
                 if let id = actionTarget { Task { await engine.delSession(id) } }
             }
