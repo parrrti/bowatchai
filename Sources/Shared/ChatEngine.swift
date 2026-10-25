@@ -288,7 +288,7 @@ final class ChatEngine: ObservableObject {
 
     func moveSession(from source: IndexSet, to destination: Int) {
         var arr = orderedSessions.map(\.id)
-        arr.move(fromOffsets: source, offsetTo: destination)
+        arr.move(fromOffsets: source, toOffset: destination)
         sessionOrder = arr
         UserDefaults.standard.set(arr, forKey: "sessionOrder")
     }
