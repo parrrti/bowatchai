@@ -8,7 +8,11 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             content
-                .task { await engine.boot() }
+                .task {
+                    // UI 就绪后再请求通知权限，init 里太早会被系统吞掉不弹
+                    Notifier.shared.requestAuthorization()
+                    await engine.boot()
+                }
         }
         .onChange(of: scenePhase) { _, s in
             // 生成中不触发前台刷新，避免和 send 的"done"本地追加撞车导致消息重复
