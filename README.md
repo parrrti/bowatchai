@@ -116,9 +116,14 @@ systemctl --user daemon-reload && systemctl --user enable --now miyu-watch
 
 ## Status
 
-Actively maintained. Latest: **v0.1.1**.
+Actively maintained. Latest: **v0.1.2**.
 
 ## Changelog
+
+### v0.1.2
+- 消息**长按菜单**：复制（AI 和自己的话都能一键复制）；用户消息可**编辑重发**（文字填回输入框改完再发）
+- **排队发送**：生成中继续输入发送不再被拒，自动排队，当前回复完依次发出
+- **停止输出**从输入条移到会话右上角 `⋯` 菜单（输入条生成中也能继续排队发）
 
 ### v0.1.1
 - 修复 AI 发的图片无法显示（CookieImage 补带登录 token，此前裸请求 401）

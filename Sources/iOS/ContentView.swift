@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import WebKit
 
 struct ContentView: View {
@@ -427,7 +428,7 @@ struct SessionDetailView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 12) {
                     ForEach(engine.messages) { m in
-                        Bubble(engine: engine, m: m, openPage: $page).id(m.id)
+                        Bubble(engine: engine, m: m, openPage: $page, onEdit: { draft = $0; focused = true }).id(m.id)
                     }
                     if engine.running.contains(engine.sid) {
                         HStack(spacing: 8) {
@@ -492,6 +493,11 @@ struct SessionDetailView: View {
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Menu {
+                    if engine.running.contains(engine.sid) {
+                        Button { engine.stopRun() } label: {
+                            Label("停止输出", systemImage: "stop.circle")
+                        }
+                    }
                     Button { showCtx = true } label: {
                         Label("上下文统计", systemImage: "gauge.with.needle")
                     }
@@ -556,34 +562,19 @@ struct SessionDetailView: View {
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
                     .glassEffect(.regular, in: .rect(cornerRadius: 22))
-                if engine.running.contains(engine.sid) {
-                    Button { engine.stopRun() } label: {
-                        Image(systemName: "stop.fill")
-                            .font(.body.weight(.semibold))
-                            .frame(width: 36, height: 36)
-                    }
-                    .buttonStyle(.glassProminent)
-                    .tint(.red)
-                    .transition(.move(edge: .trailing))
-                } else {
-                    Button {
+                Button {
                     if draft.trimmingCharacters(in: .whitespaces).isEmpty {
-                        if engine.running.contains(engine.sid) {
-                            Task { await engine.send("") }   // 本会话生成中→提示
-                        } else {
-                            focused = true
-                        }
+                        focused = true
                     } else {
                         let t = draft; draft = ""
                         Task { await engine.send(t) }
                     }
-                    } label: {
-                        Image(systemName: "arrowtriangle.up")
-                            .font(.body.weight(.semibold))
-                            .frame(width: 36, height: 36)
-                    }
-                    .buttonStyle(.glassProminent)
+                } label: {
+                    Image(systemName: "arrowtriangle.up")
+                        .font(.body.weight(.semibold))
+                        .frame(width: 36, height: 36)
                 }
+                .buttonStyle(.glassProminent)
             }
         }
         .animation(.snappy(duration: 0.2), value: engine.busy)
@@ -596,6 +587,7 @@ struct Bubble: View {
     @ObservedObject var engine: ChatEngine
     let m: ChatEngine.Msg
     @Binding var openPage: DetailPage?
+    let onEdit: (String) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -691,6 +683,18 @@ struct Bubble: View {
             if m.role == "a", let meta = m.meta, !meta.isEmpty {
                 Text(meta).font(.caption2).foregroundStyle(.tertiary)
                     .padding(.leading, 4)
+            }
+        }
+        .contextMenu {
+            if m.role != "q" {
+                Button { UIPasteboard.general.string = m.text } label: {
+                    Label("复制", systemImage: "doc.on.doc")
+                }
+                if m.role == "u" && !m.text.isEmpty {
+                    Button { onEdit(m.text) } label: {
+                        Label("编辑重发", systemImage: "pencil")
+                    }
+                }
             }
         }
     }

@@ -50,6 +50,7 @@ final class ChatEngine: ObservableObject {
     } }
     private var nextID = 1
     private var pollTasks: [String: Task<Void, Never>] = [:]
+    private var queues: [String: [String]] = [:]   // 生成中排队待发
 
     init() {
         let saved = UserDefaults.standard.string(forKey: "serverURL")
@@ -90,6 +91,7 @@ final class ChatEngine: ObservableObject {
 
     func stopRun(_ id: String) {
         pollTasks[id]?.cancel(); pollTasks[id] = nil
+        queues[id] = nil
         if running.contains(id) {
             running.remove(id)
             liveTexts[id] = ""; liveLines[id] = "已停止"
@@ -191,22 +193,25 @@ final class ChatEngine: ObservableObject {
         await refreshMeta()
     }
 
-    func send(_ raw: String) async {
+    func send(_ raw: String) async { await sendTo(raw, sid) }
+
+    /// 发到指定会话；该会话生成中则入队排队（不再拒绝）
+    private func sendTo(_ raw: String, _ targetSid: String) async {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
-        guard !running.contains(sid) else {
-            notice = "这个会话还在生成中，先停下或等它说完"
+        if running.contains(targetSid) {
+            queues[targetSid, default: []].append(text)
+            notice = "已排队，当前回复完自动发送"
             return
         }
-        let sid0 = sid
-        running.insert(sid0)
-        liveTexts[sid0] = ""; liveLines[sid0] = "思考中…"
-        liveStart(sessions.first { $0.id == sid0 }?.name ?? "对话")
+        running.insert(targetSid)
+        liveTexts[targetSid] = ""; liveLines[targetSid] = "思考中…"
+        liveStart(sessions.first { $0.id == targetSid }?.name ?? "对话")
         let task = Task { [weak self] in
             guard let self else { return }
-            var activeSid = sid0
+            var activeSid = targetSid
             do {
-                let (usedSid, since) = try await self.api.send(text, sid: sid0)
+                let (usedSid, since) = try await self.api.send(text, sid: targetSid)
                 activeSid = usedSid
                 self.running.insert(usedSid)
                 if self.sid == usedSid {
@@ -237,6 +242,7 @@ final class ChatEngine: ObservableObject {
                         self.noteDone("回复完成", String((st.text ?? "").prefix(60)))
                         self.running.remove(usedSid)
                         self.pollTasks[usedSid] = nil
+                        self.dequeueNext(usedSid)
                         return
                     case "running":
                         if let t = st.text {
@@ -258,7 +264,7 @@ final class ChatEngine: ObservableObject {
                 if !Task.isCancelled {
                     throw APIError.http("回复超时")
                 } else {
-                    return  // stopRun() 自己收尾
+                    return
                 }
             } catch APIError.unauthorized {
                 self.authed = false
@@ -272,7 +278,15 @@ final class ChatEngine: ObservableObject {
                 self.pollTasks[activeSid] = nil
             }
         }
-        pollTasks[sid0] = task
+        pollTasks[targetSid] = task
+    }
+
+    /// 当前回复完，自动发排队里的下一条
+    private func dequeueNext(_ id: String) {
+        guard var q = queues[id], !q.isEmpty else { queues[id] = nil; return }
+        let next = q.removeFirst()
+        queues[id] = q.isEmpty ? nil : q
+        Task { await sendTo(next, id) }
     }
 
     func newSession() async {
