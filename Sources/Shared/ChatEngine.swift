@@ -10,6 +10,7 @@ final class ChatEngine: ObservableObject {
         let thinkN: Int
         let images: [Int]
         let seq: Int
+        var questions: [QuestionExchange]? = nil
     }
 
     @Published var authed: Bool?
@@ -176,7 +177,7 @@ final class ChatEngine: ObservableObject {
             messages = h.messages.map {
                 Msg(id: next(), role: $0.role, text: $0.text, meta: $0.meta,
                     thinkN: $0.think_n ?? 0, images: $0.images ?? [],
-                    seq: $0.seq ?? 0)
+                    seq: $0.seq ?? 0, questions: $0.questions)
             }
             saveCache()
         } catch APIError.unauthorized { authed = false }
@@ -242,7 +243,12 @@ final class ChatEngine: ObservableObject {
                             self.liveTexts[usedSid] = t
                             self.liveUpdate("生成中", t)
                         }
-                        if let l = st.live, !l.isEmpty { self.liveLines[usedSid] = l }
+                        var line = ""
+                        if let tk = st.gen_tokens, tk > 0 {
+                            line = "思考中 · \(tk) token"
+                        }
+                        if let l = st.live, !l.isEmpty { line = l }
+                        if !line.isEmpty { self.liveLines[usedSid] = line }
                     default:
                         if (self.liveLines[usedSid] ?? "").isEmpty {
                             self.liveLines[usedSid] = "等待中…"

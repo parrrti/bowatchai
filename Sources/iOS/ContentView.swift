@@ -300,6 +300,7 @@ struct SettingsSheet: View {
                 }
                 Section("流式传输") {
                     Picker("刷新间隔", selection: $engine.pollInterval) {
+                        Text("0.5 秒").tag(0.5)
                         Text("1 秒").tag(1.0)
                         Text("1.5 秒").tag(1.5)
                         Text("2 秒").tag(2.0)
@@ -585,7 +586,40 @@ struct Bubble: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            if m.role == "u" {
+            if m.role == "q" {
+                ForEach(Array((m.questions ?? []).enumerated()), id: \.offset) { _, ex in
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(Array((ex.questions ?? []).enumerated()), id: \.offset) { qi, q in
+                            VStack(alignment: .leading, spacing: 4) {
+                                if let h = q.header {
+                                    Label(h, systemImage: "questionmark.bubble")
+                                        .font(.caption).foregroundStyle(.purple)
+                                }
+                                if let question = q.question {
+                                    Text(question).font(.body.weight(.semibold))
+                                }
+                                ForEach(q.options ?? [], id: \.self) { opt in
+                                    HStack(alignment: .top, spacing: 6) {
+                                        Text("·").foregroundStyle(.secondary)
+                                        Text(opt.label).font(.footnote)
+                                        if let d = opt.description {
+                                            Text(d).font(.caption2).foregroundStyle(.tertiary)
+                                        }
+                                    }
+                                }
+                                if let ans = ex.answers?[qi], !ans.isEmpty {
+                                    Text("我的选择：" + ans.joined(separator: "、"))
+                                        .font(.footnote).foregroundStyle(.blue)
+                                }
+                            }
+                            .padding(10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.purple.opacity(0.08),
+                                        in: RoundedRectangle(cornerRadius: 12))
+                        }
+                    }
+                }
+            } else if m.role == "u" {
                 HStack {
                     Spacer(minLength: 48)
                     Text(m.text).font(.body)
