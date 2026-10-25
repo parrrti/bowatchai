@@ -116,9 +116,13 @@ systemctl --user daemon-reload && systemctl --user enable --now miyu-watch
 
 ## Status
 
-Actively maintained. Latest: **v0.1.3**.
+Actively maintained. Latest: **v0.1.4**.
 
 ## Changelog
+
+### v0.1.4
+- 修复**新建对话**失效（boot 不再把 sid 切回服务端旧 current，保留本地新建的会话）
+- 输入框左边新增**相册上传**按钮（仅 iOS）：选图自动压缩（长边 ≤1600 JPEG），上传后发消息时带上这张图
 
 ### v0.1.3
 - **分享对话**：会话 `⋯` 菜单新增「分享对话」，导出 md 日志格式 `[user-26/7/8:12:20]内容`（AI 回复带 `[ai-...]`），走系统分享面板

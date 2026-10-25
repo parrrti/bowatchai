@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import PhotosUI
 import WebKit
 
 struct ContentView: View {
@@ -415,6 +416,7 @@ struct SessionDetailView: View {
     @ObservedObject var engine: ChatEngine
     let presetSid: String
     @State private var draft = ""
+    @State private var pickedItem: PhotosPickerItem?
     @State private var barHidden = false
     @State private var page: DetailPage?
     @State private var confirmDelete = false
@@ -534,6 +536,17 @@ struct SessionDetailView: View {
                 Text("暂无上下文数据（发条消息后刷新）")
             }
         }
+        .onChange(of: pickedItem) { _, item in
+            guard let item else { return }
+            Task {
+                if let data = try? await item.loadTransferable(type: Data.self),
+                   let img = UIImage(data: data),
+                   let jpg = compressJPEG(img) {
+                    await engine.uploadData(jpg, name: "IMG_\(Int(Date().timeIntervalSince1970)).jpg")
+                }
+                pickedItem = nil
+            }
+        }
         .onAppear { if engine.sid != presetSid {
             Task { await engine.switchSession(presetSid) } } }
     }
@@ -556,6 +569,15 @@ struct SessionDetailView: View {
         engine.sessions.first { $0.id == engine.sid }?.name ?? "对话"
     }
 
+    private func compressJPEG(_ img: UIImage) -> Data? {
+        let maxSide: CGFloat = 1600
+        let scale = min(1, maxSide / max(img.size.width, img.size.height))
+        let sz = CGSize(width: img.size.width * scale, height: img.size.height * scale)
+        let rend = UIGraphicsImageRenderer(size: sz)
+        let out = rend.image { _ in img.draw(in: CGRect(origin: .zero, size: sz)) }
+        return out.jpegData(compressionQuality: 0.72)
+    }
+
     private func scrollToBottom(_ proxy: ScrollViewProxy) {
         proxy.scrollTo(engine.messages.last?.id ?? Self.liveDot, anchor: .bottom)
     }
@@ -564,6 +586,12 @@ struct SessionDetailView: View {
     private var sendBar: some View {
         GlassEffectContainer(spacing: 8) {
             HStack(alignment: .center, spacing: 8) {
+                PhotosPicker(selection: $pickedItem, matching: .images) {
+                    Image(systemName: "photo.on.rectangle")
+                        .font(.body.weight(.semibold))
+                        .frame(width: 36, height: 36)
+                }
+                .buttonStyle(.glass)
                 TextField("消息", text: $draft, axis: .vertical)
                     .lineLimit(1...4)
                     .submitLabel(.done)

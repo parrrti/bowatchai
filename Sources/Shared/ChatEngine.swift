@@ -122,7 +122,7 @@ final class ChatEngine: ObservableObject {
             accountName = st.account?.display_name ?? st.account?.username ?? ""
             account = st.account
             sessions = st.sessions ?? []
-            sid = st.current ?? ""
+            if sid.isEmpty { sid = st.current ?? "" }   // 保留本地 sid（新建会话后 boot 别切回旧 current）
             ctx = st.ctx
             await loadHistory()
             saveCache()
@@ -171,6 +171,16 @@ final class ChatEngine: ObservableObject {
         sid = ""
         account = nil
         try? UserDefaults.standard.removeObject(forKey: "bowatch.cache")
+    }
+
+    /// 上传文件（压缩后 Data）到当前会话；发消息时 miyu 自动带上
+    func uploadData(_ data: Data, name: String, mime: String = "image/jpeg") async {
+        guard !sid.isEmpty else { return }
+        do {
+            try await api.upload(sid: sid, name: name, mime: mime, data: data)
+            notice = "已上传，发消息时会带上这张图"
+        } catch APIError.unauthorized { authed = false }
+        catch { notice = "上传失败：\(error.localizedDescription)" }
     }
 
     func loadHistory() async {

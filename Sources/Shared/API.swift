@@ -196,6 +196,14 @@ final class APIClient {
         try await dec(MWNewSession.self, "/api/new-session", method: "POST", body: [:])
     }
 
+    /// 上传文件到会话（watchd /api/upload 转发 miyu /api/attachments）
+    func upload(sid: String, name: String, mime: String, data: Data) async throws {
+        _ = try await raw("/api/upload", method: "POST",
+                          body: ["sid": sid, "name": name, "mime": mime,
+                                 "data": data.base64EncodedString()],
+                          timeout: 120)
+    }
+
     func delSession(_ sid: String) async throws -> MWDel {
         try await dec(MWDel.self, "/api/delsession", method: "POST",
                       body: ["sid": sid], timeout: 60)
