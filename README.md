@@ -56,6 +56,64 @@ bowatch talks to **watchd** — a tiny Python relay in front of the Miyu
 daemon (`~/.miyu/watch/server.py`). All traffic goes through the relay's
 `/watch/*` prefix; the app never touches the daemon directly.
 
+源码在 [`backend/watchd.py`](backend/watchd.py)，**纯 Python 标准库、零第三方依赖**。部署教程：
+
+### 依赖
+- Python 3.8+（只用标准库，无需 `pip install`）
+- 一个跑着的 Miyu 实例（watchd 转发给它）
+
+### 1. 环境变量
+| 变量 | 默认 | 说明 |
+| --- | --- | --- |
+| `WATCH_MIYU` | `http://127.0.0.1:8300` | Miyu 的地址 |
+| `WATCH_HOST` | `127.0.0.1` | watchd 监听地址 |
+| `WATCH_PORT` | `8310` | watchd 监听端口 |
+| `WATCH_USER` | `user` | 登录 Miyu 的用户名（强制压缩时用） |
+| `WATCH_PWFILE` | `~/.miyu/watch/.webpw` | 存上面用户名对应密码的文件 |
+
+### 2. 密码文件（仅"强制压缩"用到）
+watchd 要能自己登录 Miyu 才能强制压缩。把密码写进文件（权限 600）：
+```bash
+mkdir -p ~/.miyu/watch
+echo '你的密码' > ~/.miyu/watch/.webpw
+chmod 600 ~/.miyu/watch/.webpw
+```
+
+### 3. 启动
+```bash
+WATCH_MIYU=http://127.0.0.1:8300 WATCH_USER=你的用户名 python3 backend/watchd.py
+```
+验证：带登录 cookie 访问 `http://127.0.0.1:8310/watch_ai/api/state` 应返回 JSON。
+
+### 4. 反代（App 走 http/https 直连）
+App 需要一个能访问的 http(s) 地址。nginx 把某路径反代到 watchd：
+```nginx
+location /watch_ai {
+    proxy_pass http://127.0.0.1:8310;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_buffering off;
+}
+```
+App 的「服务器地址」填 `https://你的域名/watch_ai`（或 `/watch`）。App 会识别 `/watch`、`/watch_ai` 前缀，不会重复叠加。
+
+### 5. systemd 开机自启（可选）
+```ini
+# ~/.config/systemd/user/miyu-watch.service
+[Unit]
+Description=miyu watchd
+[Service]
+ExecStart=/usr/bin/python3 %h/bowatch/backend/watchd.py
+Environment=WATCH_MIYU=http://127.0.0.1:8300
+Environment=WATCH_USER=你的用户名
+Restart=on-failure
+[Install]
+WantedBy=default.target
+```
+```bash
+systemctl --user daemon-reload && systemctl --user enable --now miyu-watch
+```
+
 ## Status
 
 Actively maintained. Latest: **v0.0.29**.
