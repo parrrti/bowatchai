@@ -116,9 +116,13 @@ systemctl --user daemon-reload && systemctl --user enable --now miyu-watch
 
 ## Status
 
-Actively maintained. Latest: **v0.0.29**.
+Actively maintained. Latest: **v0.1.1**.
 
 ## Changelog
+
+### v0.1.1
+- 修复 AI 发的图片无法显示（CookieImage 补带登录 token，此前裸请求 401）
+- AI 生成的图片可**保存到相册**（图片页底部按钮）
 
 ### v0.1.0
 - 版本号进入 **0.1.x** 系列（此前 0.0.x 为快速迭代期）。功能已基本成型。

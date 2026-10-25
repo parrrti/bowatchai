@@ -476,7 +476,7 @@ struct SessionDetailView: View {
         .navigationDestination(item: $page) { p in
             switch p {
             case .image(let mid):
-                CookieImage(path: "/api/img?mid=\(mid)")
+                CookieImage(path: "/api/img?mid=\(mid)", showSave: true)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color.black)
                     .navigationTitle("图片")
