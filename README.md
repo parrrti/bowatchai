@@ -62,6 +62,9 @@ Actively maintained. Latest: **v0.0.29**.
 
 ## Changelog
 
+### v0.0.34
+- 版本占位：用于验证「检查更新」弹窗逻辑（装 v0.0.33 会检测到 v0.0.34）
+
 ### v0.0.33
 - **会话重命名**：列表左滑「重命名」（铅笔），弹窗输入新名字（服务端 watchd 新增 `/api/rename`，走 miyu `PATCH /api/sessions/{sid}`）
 
