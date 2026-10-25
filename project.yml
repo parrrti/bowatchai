@@ -25,17 +25,22 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         INFOPLIST_FILE: Sources/iOS/Info.plist
   bowatchWidget:
-    type: bundle.widget-extension
+    type: app-extension
     platform: iOS
     sources:
       - Sources/Widget
       - Sources/SharedActivity
+    info:
+      path: Sources/Widget/Info.plist
+      properties:
+        CFBundleDisplayName: bowatch Live
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
     settings:
       base:
         SWIFT_VERSION: "5.9"
-        GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_FILE: Sources/Widget/Info.plist
         SKIP_INSTALL: YES
+        TARGETED_DEVICE_FAMILY: "1"
   bowatchWatch:
     type: application
     platform: watchOS
