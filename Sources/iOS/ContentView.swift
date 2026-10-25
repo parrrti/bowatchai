@@ -15,6 +15,10 @@ struct ContentView: View {
                 }
         }
         .onChange(of: scenePhase) { _, s in
+            // 双保险：回前台时确保通知权限已请求过（幂等，已授权/拒绝不会重复弹）
+            if s == .active {
+                Notifier.shared.requestAuthorization()
+            }
             // 生成中不触发前台刷新，避免和 send 的"done"本地追加撞车导致消息重复
             if s == .active, engine.authed == true, !engine.busy {
                 Task { await engine.boot(force: true) }
