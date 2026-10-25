@@ -62,6 +62,28 @@ final class ChatEngine: ObservableObject {
 
     func applyManualCookie(_ v: String) { manualCookie = v }
 
+    // MARK: - 通知 / Live Activity（仅 iOS，watchOS 编译时跳过）
+    private func noteDone(_ title: String, _ body: String) {
+        #if os(iOS)
+        Notifier.shared.notify(title: title, body: body)
+        #endif
+    }
+    private func liveStart(_ name: String) {
+        #if os(iOS)
+        Notifier.shared.startLive(sessionName: name)
+        #endif
+    }
+    private func liveUpdate(_ status: String, _ text: String) {
+        #if os(iOS)
+        Notifier.shared.updateLive(status: status, text: text)
+        #endif
+    }
+    private func liveEnd(_ status: String, _ text: String) {
+        #if os(iOS)
+        Notifier.shared.endLive(finalStatus: status, finalText: text)
+        #endif
+    }
+
     func stopRun(_ id: String) {
         pollTasks[id]?.cancel(); pollTasks[id] = nil
         if running.contains(id) {
@@ -175,6 +197,7 @@ final class ChatEngine: ObservableObject {
         let sid0 = sid
         running.insert(sid0)
         liveTexts[sid0] = ""; liveLines[sid0] = "思考中…"
+        liveStart(sessions.first { $0.id == sid0 }?.name ?? "对话")
         let task = Task { [weak self] in
             guard let self else { return }
             var activeSid = sid0
@@ -206,11 +229,16 @@ final class ChatEngine: ObservableObject {
                         }
                         self.ctx = st.ctx
                         await self.refreshMeta()
+                        self.liveEnd("已完成", st.text ?? "")
+                        self.noteDone("回复完成", String((st.text ?? "").prefix(60)))
                         self.running.remove(usedSid)
                         self.pollTasks[usedSid] = nil
                         return
                     case "running":
-                        if let t = st.text { self.liveTexts[usedSid] = t }
+                        if let t = st.text {
+                            self.liveTexts[usedSid] = t
+                            self.liveUpdate("生成中", t)
+                        }
                         if let l = st.live, !l.isEmpty { self.liveLines[usedSid] = l }
                     default:
                         if (self.liveLines[usedSid] ?? "").isEmpty {
@@ -255,6 +283,7 @@ final class ChatEngine: ObservableObject {
         do {
             _ = try await api.delSession(id)
             notice = "会话已删"
+            noteDone("会话已删", "")
             await boot(force: true)
         } catch APIError.unauthorized { authed = false }
         catch {
@@ -269,6 +298,7 @@ final class ChatEngine: ObservableObject {
             var msg = r.compacted ? "已压缩" : "不需要压缩"
             if let d = r.detail, !d.isEmpty { msg += "：" + String(d.suffix(120)) }
             notice = msg
+            noteDone("压缩完成", msg)
             if id == sid { await refreshCtx() }
         } catch APIError.unauthorized { authed = false }
         catch { notice = "压缩失败：\(error.localizedDescription)" }
@@ -302,6 +332,7 @@ final class ChatEngine: ObservableObject {
                 msg += "：" + String(d.suffix(120))
             }
             notice = msg
+            noteDone("压缩完成", msg)
             await refreshCtx()
         } catch APIError.unauthorized { authed = false }
         catch { notice = "压缩失败：\(error.localizedDescription)" }

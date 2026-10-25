@@ -11,7 +11,11 @@ targets:
     sources:
       - Sources/iOS
       - Sources/Shared
+      - Sources/SharedActivity
       - Assets.xcassets
+    dependencies:
+      - target: bowatchWidget
+        embed: true
     settings:
       base:
         SWIFT_VERSION: "5.9"
@@ -20,6 +24,18 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         INFOPLIST_FILE: Sources/iOS/Info.plist
+  bowatchWidget:
+    type: bundle.widget-extension
+    platform: iOS
+    sources:
+      - Sources/Widget
+      - Sources/SharedActivity
+    settings:
+      base:
+        SWIFT_VERSION: "5.9"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_FILE: Sources/Widget/Info.plist
+        SKIP_INSTALL: YES
   bowatchWatch:
     type: application
     platform: watchOS
