@@ -418,6 +418,7 @@ struct SessionDetailView: View {
     @State private var page: DetailPage?
     @State private var confirmDelete = false
     @State private var confirmCompact = false
+    @State private var showCtx = false
     @FocusState private var focused: Bool
     private static let liveDot = Int.max
 
@@ -491,6 +492,9 @@ struct SessionDetailView: View {
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Menu {
+                    Button { showCtx = true } label: {
+                        Label("上下文统计", systemImage: "gauge.with.needle")
+                    }
                     Button { confirmCompact = true } label: {
                         Label("压缩对话", systemImage: "arrow.down.backward.and.arrow.up.forward")
                     }
@@ -511,6 +515,15 @@ struct SessionDetailView: View {
                 Task { await engine.delSession() }
             }
             Button("取消", role: .cancel) {}
+        }
+        .alert("上下文统计", isPresented: $showCtx) {
+            Button("好", role: .cancel) {}
+        } message: {
+            if let c = engine.ctx {
+                Text("已用 \(c.used) / \(c.window) tokens\n占比 \(Int(c.ratio * 100))%")
+            } else {
+                Text("暂无上下文数据（发条消息后刷新）")
+            }
         }
         .onAppear { if engine.sid != presetSid {
             Task { await engine.switchSession(presetSid) } } }

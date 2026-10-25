@@ -120,6 +120,9 @@ Actively maintained. Latest: **v0.0.29**.
 
 ## Changelog
 
+### v0.0.36
+- 对话页右上角 `⋯` 菜单新增**上下文统计**：显示当前会话已用/总 token 及占比
+
 ### v0.0.35
 - 显示 **AI 结构化提问**（question_exchanges）：紫色卡片含问题+选项+我的选择（服务端 watchd history 透传）
 - 生成/思考中实时显示**已生成 token 数**（`思考中 · N token`），刷新间隔新增 **0.5 秒**档
