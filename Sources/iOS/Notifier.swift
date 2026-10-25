@@ -54,7 +54,8 @@ final class Notifier {
                                                         text: finalText,
                                                         sessionName: activity.content.state.sessionName)
         Task {
-            await activity.end(using: state, dismissalPolicy: .default)
+            // .immediate：完成即刻收起灵动岛，不停留
+            await activity.end(using: state, dismissalPolicy: .immediate)
         }
         self.activity = nil
     }

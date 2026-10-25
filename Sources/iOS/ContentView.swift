@@ -4,6 +4,8 @@ import WebKit
 struct ContentView: View {
     @StateObject private var engine = ChatEngine()
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.openURL) private var openURL
+    @State private var updateInfo: UpdateInfo?
 
     var body: some View {
         NavigationStack {
@@ -12,6 +14,10 @@ struct ContentView: View {
                     // UI 就绪后再请求通知权限，init 里太早会被系统吞掉不弹
                     Notifier.shared.requestAuthorization()
                     await engine.boot()
+                    // 开屏静默检查更新，有新版弹窗（不强制）
+                    if let info = await UpdateChecker.check() {
+                        updateInfo = info
+                    }
                 }
         }
         .onChange(of: scenePhase) { _, s in
@@ -23,6 +29,17 @@ struct ContentView: View {
             if s == .active, engine.authed == true, !engine.busy {
                 Task { await engine.boot(force: true) }
             }
+        }
+        .alert("发现新版本 v\(updateInfo?.latest ?? "")",
+               isPresented: Binding(get: { updateInfo != nil },
+                                    set: { if !$0 { updateInfo = nil } })) {
+            Button("去看看") {
+                if let s = updateInfo?.url, let u = URL(string: s) { openURL(u) }
+                updateInfo = nil
+            }
+            Button("稍后", role: .cancel) { updateInfo = nil }
+        } message: {
+            Text("当前版本 v\(UpdateChecker.currentVersion())")
         }
     }
 
@@ -174,28 +191,33 @@ struct SessionListView: View {
     @State private var confirmDelete = false
 
     var body: some View {
-        List(engine.sessions) { s in
-            NavigationLink(value: s.id) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(s.name).font(.body)
-                    if let p = s.preview, !p.isEmpty {
-                        Text(p).font(.footnote)
-                            .foregroundStyle(.secondary).lineLimit(1)
+        List {
+            ForEach(engine.orderedSessions) { s in
+                NavigationLink(value: s.id) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(s.name).font(.body)
+                        if let p = s.preview, !p.isEmpty {
+                            Text(p).font(.footnote)
+                                .foregroundStyle(.secondary).lineLimit(1)
+                        }
+                    }
+                }
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    Button {
+                        Task { await engine.compactSession(s.id) }
+                    } label: {
+                        Label("压缩", systemImage: "arrow.down.backward.and.arrow.up.forward")
+                    }.tint(.blue)
+                    Button(role: .destructive) {
+                        actionTarget = s.id
+                        confirmDelete = true
+                    } label: {
+                        Label("删除", systemImage: "trash")
                     }
                 }
             }
-            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                Button {
-                    Task { await engine.compactSession(s.id) }
-                } label: {
-                    Label("压缩", systemImage: "arrow.down.backward.and.arrow.up.forward")
-                }.tint(.blue)
-                Button(role: .destructive) {
-                    actionTarget = s.id
-                    confirmDelete = true
-                } label: {
-                    Label("删除", systemImage: "trash")
-                }
+            .onMove { from, to in
+                engine.moveSession(from: from, to: to)
             }
         }
         .confirmationDialog("删除「\(actionTargetName)」？",
@@ -236,6 +258,9 @@ struct SessionListView: View {
 struct SettingsSheet: View {
     @ObservedObject var engine: ChatEngine
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+    @State private var aboutMsg: String?
+    @State private var aboutUpdate: UpdateInfo?
 
     var body: some View {
         NavigationStack {
@@ -282,9 +307,42 @@ struct SettingsSheet: View {
                             .foregroundStyle(.orange)
                             .onTapGesture { engine.notice = "" } }
                 }
+                Section("关于") {
+                    HStack {
+                        Text("当前版本")
+                        Spacer()
+                        Text("v\(UpdateChecker.currentVersion())")
+                            .foregroundStyle(.secondary)
+                    }
+                    Button("检查更新") {
+                        aboutMsg = "检查中…"
+                        Task {
+                            if let i = await UpdateChecker.check() {
+                                aboutMsg = nil
+                                aboutUpdate = i
+                            } else {
+                                aboutMsg = "已是最新版本"
+                            }
+                        }
+                    }
+                    if let m = aboutMsg {
+                        Text(m).font(.footnote).foregroundStyle(.secondary)
+                    }
+                }
             }
             .navigationTitle("设置")
             .toolbar { Button("完成") { dismiss() } }
+            .alert("发现新版本 v\(aboutUpdate?.latest ?? "")",
+                   isPresented: Binding(get: { aboutUpdate != nil },
+                                        set: { if !$0 { aboutUpdate = nil } })) {
+                Button("去看看") {
+                    if let s = aboutUpdate?.url, let u = URL(string: s) { openURL(u) }
+                    aboutUpdate = nil
+                }
+                Button("好", role: .cancel) { aboutUpdate = nil }
+            } message: {
+                Text("当前版本 v\(UpdateChecker.currentVersion())")
+            }
         }
     }
 }
@@ -367,7 +425,7 @@ struct SessionDetailView: View {
                 }
                 .padding(.horizontal)
                 .padding(.top, 4)
-                .padding(.bottom, 72)
+                // 底部不设固定 padding：靠 safeAreaInset 随输入框高度自动抬高聊天
             }
             .onScrollPhaseChange { _, new in
                 barHidden = (new == .tracking || new == .decelerating)
@@ -454,7 +512,8 @@ struct SessionDetailView: View {
     private var sendBar: some View {
         GlassEffectContainer(spacing: 8) {
             HStack(alignment: .center, spacing: 8) {
-                TextField("消息", text: $draft)
+                TextField("消息", text: $draft, axis: .vertical)
+                    .lineLimit(1...4)
                     .submitLabel(.done)
                     .focused($focused)
                     .onSubmit {

@@ -21,6 +21,9 @@ final class ChatEngine: ObservableObject {
     @Published var sid = ""
     @Published var sessions: [MWState.Sess] = []
     @Published var messages: [Msg] = []
+    /// 本地拖动排序（UserDefaults 持久化；服务端不支持排序，仅本地生效）
+    @Published private(set) var sessionOrder: [String] =
+        UserDefaults.standard.stringArray(forKey: "sessionOrder") ?? []
     @Published var running: Set<String> = []   // 正在生成的会话集合（每会话独立）
     @Published private var liveTexts: [String: String] = [:]
     @Published private var liveLines: [String: String] = [:]
@@ -272,6 +275,22 @@ final class ChatEngine: ObservableObject {
             await switchSession(s.id)
         } catch APIError.unauthorized { authed = false }
         catch { notice = "\(error.localizedDescription)" }
+    }
+
+    /// 按本地拖动顺序排序的会话列表
+    var orderedSessions: [MWState.Sess] {
+        let idx = Dictionary(uniqueKeysWithValues:
+            sessionOrder.enumerated().map { ($1, $0) })
+        return sessions.sorted {
+            (idx[$0.id] ?? Int.max) < (idx[$1.id] ?? Int.max)
+        }
+    }
+
+    func moveSession(from source: IndexSet, to destination: Int) {
+        var arr = orderedSessions.map(\.id)
+        arr.move(fromOffsets: source, offsetTo: destination)
+        sessionOrder = arr
+        UserDefaults.standard.set(arr, forKey: "sessionOrder")
     }
 
     func delSession() async {
