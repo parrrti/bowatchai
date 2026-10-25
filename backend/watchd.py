@@ -458,6 +458,18 @@ def _think_n(turn):
         return 0
 
 
+def _fmt_ts(iso):
+    """ISO(UTC) → 本地 YY/M/D:HH:MM（分享日志用）；空/坏回 None"""
+    if not iso:
+        return None
+    try:
+        from datetime import datetime
+        dt = datetime.fromisoformat(str(iso)).astimezone()
+        return f"{dt.year % 100}/{dt.month}/{dt.day}:{dt.hour:02d}:{dt.minute:02d}"
+    except Exception:
+        return None
+
+
 def _inline_images(sid, seq):
     """一条回合的内联图（AI 工具生成，BLOB 在 turn_inline_media）→
     [media_id, ...]。本地库直读；拿不到回空表，绝不拖累消息主链路。
@@ -718,6 +730,7 @@ def api_status(cookie, qs):
     ctx = _ctx_info(cookie, sid)
     obj = {"state": "done", "text": process(text, w, fs),
            "meta": fmt_meta(turn, ctx), "ctx": ctx}
+    obj["ts"] = _fmt_ts(turn.get("assistant_timestamp"))
     tn = _think_n(turn)
     if tn:
         obj["think_n"] = tn
@@ -808,9 +821,10 @@ def api_history(cookie, qs):
         u = str(t.get("user_content") or "")
         a = _full_text(t)
         if u:
-            messages.append({"role": "u", "text": u})
+            messages.append({"role": "u", "text": u, "ts": _fmt_ts(t.get("user_timestamp"))})
         if a.strip():
             msg = {"role": "a", "text": process(a, w, fs)}
+            msg["ts"] = _fmt_ts(t.get("assistant_timestamp"))
             meta = fmt_meta(t)
             if meta:
                 msg["meta"] = meta
