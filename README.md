@@ -196,4 +196,4 @@ Actively maintained. Latest: **v0.0.29**.
 > 早期（v0.0.18 及以前）：仓库骨架、watchd 11 端点全集、双端免签 CI、
 > 会话列表/设置/账户三页 UI、离线缓存、[图]/[思考] 详情页等奠基工作。
 
-License: none yet — ask before reusing.
+License / 免责：见 [DISCLAIMER.md](DISCLAIMER.md)。下载、安装或使用本软件即视为接受该免责声明。
