@@ -11,6 +11,7 @@ final class ChatEngine: ObservableObject {
         let images: [Int]
         let seq: Int
         var questions: [QuestionExchange]? = nil
+        var ts: String? = nil
     }
 
     @Published var authed: Bool?
@@ -179,7 +180,7 @@ final class ChatEngine: ObservableObject {
             messages = h.messages.map {
                 Msg(id: next(), role: $0.role, text: $0.text, meta: $0.meta,
                     thinkN: $0.think_n ?? 0, images: $0.images ?? [],
-                    seq: $0.seq ?? 0, questions: $0.questions)
+                    seq: $0.seq ?? 0, questions: $0.questions, ts: $0.ts)
             }
             saveCache()
         } catch APIError.unauthorized { authed = false }
@@ -233,7 +234,7 @@ final class ChatEngine: ObservableObject {
                                                      meta: st.meta,
                                                      thinkN: st.think_n ?? 0,
                                                      images: st.images ?? [],
-                                                     seq: st.seq ?? 0))
+                                                     seq: st.seq ?? 0, ts: st.ts))
                             self.saveCache()
                         }
                         self.ctx = st.ctx

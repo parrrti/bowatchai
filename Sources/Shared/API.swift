@@ -45,6 +45,7 @@ struct MWStatus: Codable {
     let seq: Int?
     let images: [Int]?
     let gen_tokens: Int?
+    let ts: String?
 }
 
 struct QuestionExchange: Codable, Hashable {
@@ -67,6 +68,7 @@ struct MWHistory: Codable {
         let meta: String?; let think_n: Int?
         let images: [Int]?; let seq: Int?
         let questions: [QuestionExchange]?
+        let ts: String?
     }
     let messages: [M]
 }

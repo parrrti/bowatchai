@@ -498,6 +498,9 @@ struct SessionDetailView: View {
                             Label("停止输出", systemImage: "stop.circle")
                         }
                     }
+                    ShareLink(item: shareText()) {
+                        Label("分享对话", systemImage: "square.and.arrow.up")
+                    }
                     Button { showCtx = true } label: {
                         Label("上下文统计", systemImage: "gauge.with.needle")
                     }
@@ -533,6 +536,16 @@ struct SessionDetailView: View {
         }
         .onAppear { if engine.sid != presetSid {
             Task { await engine.switchSession(presetSid) } } }
+    }
+
+    private func shareText() -> String {
+        var lines: [String] = ["# \(sessionName)\n"]
+        for m in engine.messages where m.role == "u" || m.role == "a" {
+            let who = m.role == "u" ? "user" : "ai"
+            let tag = m.ts.map { "[\(who)-\($0)]" } ?? "[\(who)]"
+            lines.append(tag + m.text)
+        }
+        return lines.joined(separator: "\n")
     }
 
     private var sessionName: String {

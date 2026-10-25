@@ -116,9 +116,12 @@ systemctl --user daemon-reload && systemctl --user enable --now miyu-watch
 
 ## Status
 
-Actively maintained. Latest: **v0.1.2**.
+Actively maintained. Latest: **v0.1.3**.
 
 ## Changelog
+
+### v0.1.3
+- **分享对话**：会话 `⋯` 菜单新增「分享对话」，导出 md 日志格式 `[user-26/7/8:12:20]内容`（AI 回复带 `[ai-...]`），走系统分享面板
 
 ### v0.1.2
 - 消息**长按菜单**：复制（AI 和自己的话都能一键复制）；用户消息可**编辑重发**（文字填回输入框改完再发）
