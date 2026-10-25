@@ -323,6 +323,21 @@ final class ChatEngine: ObservableObject {
         catch { notice = "压缩失败：\(error.localizedDescription)" }
     }
 
+    func renameSession(_ id: String, to name: String) async {
+        let n = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !id.isEmpty, !n.isEmpty else { return }
+        do {
+            try await api.rename(id, name: n)
+            if let i = sessions.firstIndex(where: { $0.id == id }) {
+                let o = sessions[i]
+                sessions[i] = MWState.Sess(id: o.id, name: n,
+                                           preview: o.preview, mode: o.mode)
+            }
+            notice = "已重命名"
+        } catch APIError.unauthorized { authed = false }
+        catch { notice = "重命名失败：\(error.localizedDescription)" }
+    }
+
     func loadModels() async {
         do {
             let m = try await api.modelsList(sid: sid)

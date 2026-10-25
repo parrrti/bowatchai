@@ -183,6 +183,11 @@ final class APIClient {
                       body: ["sid": sid], timeout: 60)
     }
 
+    func rename(_ sid: String, name: String) async throws {
+        _ = try await raw("/api/rename", method: "POST",
+                          body: ["sid": sid, "name": name], timeout: 30)
+    }
+
     // ---- 模型 / 压缩 / 思考 ------------------------------------------
     func modelsList(sid: String) async throws -> MWModels {
         try await dec(MWModels.self, "/api/models?sid=\(qenc(sid))")

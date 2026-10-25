@@ -189,6 +189,8 @@ struct SessionListView: View {
     @State private var showSettings = false
     @State private var actionTarget: String?
     @State private var confirmDelete = false
+    @State private var renameTarget: MWState.Sess?
+    @State private var renameText = ""
 
     var body: some View {
         List {
@@ -214,6 +216,12 @@ struct SessionListView: View {
                     } label: {
                         Label("删除", systemImage: "trash")
                     }
+                    Button {
+                        renameTarget = s
+                        renameText = s.name
+                    } label: {
+                        Label("重命名", systemImage: "pencil")
+                    }.tint(.orange)
                 }
             }
             .onMove { from, to in
@@ -228,6 +236,17 @@ struct SessionListView: View {
             Button("取消", role: .cancel) {}
         } message: {
             Text("此操作不可撤销")
+        }
+        .alert("重命名会话", isPresented: Binding(get: { renameTarget != nil },
+                                                  set: { if !$0 { renameTarget = nil } })) {
+            TextField("会话名", text: $renameText)
+            Button("确定") {
+                if let t = renameTarget {
+                    Task { await engine.renameSession(t.id, to: renameText) }
+                }
+                renameTarget = nil
+            }
+            Button("取消", role: .cancel) { renameTarget = nil }
         }
         .navigationTitle(engine.persona.isEmpty ? "bowatch" : engine.persona)
         .toolbarBackgroundVisibility(.hidden, for: .navigationBar)

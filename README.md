@@ -62,6 +62,9 @@ Actively maintained. Latest: **v0.0.29**.
 
 ## Changelog
 
+### v0.0.33
+- **会话重命名**：列表左滑「重命名」（铅笔），弹窗输入新名字（服务端 watchd 新增 `/api/rename`，走 miyu `PATCH /api/sessions/{sid}`）
+
 ### v0.0.32
 - 会话列表**长按拖动排序**（本地 UserDefaults 持久化，重启保持）
 - **检查更新**：开屏静默检查，有新版弹窗提示（不强制，可"稍后"）；设置 → 关于 → 检查更新
