@@ -1,4 +1,5 @@
 #if os(iOS)
+import Foundation
 import ActivityKit
 
 /// 灵动岛/锁屏实时活动的数据模型（iOS App 与 Widget Extension 共用）
